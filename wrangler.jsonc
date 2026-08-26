@@ -8,4 +8,7 @@
     "pattern": "677078.xyz",
     "custom_domain": true,
   },
+  "assets": {
+    "directory": "./dist",
+  },
 }
