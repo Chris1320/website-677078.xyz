@@ -3,10 +3,12 @@
   "name": "website-677078-xyz",
   "compatibility_date": "2026-08-26",
   "workers_dev": false,
-  "route": {
-    "pattern": "677078.xyz",
-    "custom_domain": true,
-  },
+  "routes": [
+    {
+      "pattern": "677078.xyz",
+      "custom_domain": true,
+    },
+  ],
   "assets": {
     "directory": "./dist",
   },
