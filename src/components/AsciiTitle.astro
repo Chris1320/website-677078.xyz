@@ -3,283 +3,283 @@ import ThemeToggle from './ThemeToggle.astro';
 ---
 
 <div class="title-wrapper" id="title-wrapper">
-	<h1 class="domain-title" id="domain-title">
-		<!-- 67 > C -->
-		<div class="slot-container pair-1" data-slot="1">
-			<div class="slot-reel">
-				<div class="slot-item num-state">67</div>
-				<div class="slot-item intermediate">83</div>
-				<div class="slot-item intermediate">43</div>
-				<div class="slot-item intermediate">99</div>
-				<div class="slot-item intermediate">C</div>
-				<div class="slot-item char-state">C</div>
-			</div>
-		</div>
-		<!-- 70 > F -->
-		<div class="slot-container pair-2" data-slot="2">
-			<div class="slot-reel">
-				<div class="slot-item num-state">70</div>
-				<div class="slot-item intermediate">86</div>
-				<div class="slot-item intermediate">46</div>
-				<div class="slot-item intermediate">102</div>
-				<div class="slot-item intermediate">F</div>
-				<div class="slot-item char-state">F</div>
-			</div>
-		</div>
-		<!-- 78 > N -->
-		<div class="slot-container pair-3" data-slot="3">
-			<div class="slot-reel">
-				<div class="slot-item num-state">78</div>
-				<div class="slot-item intermediate">94</div>
-				<div class="slot-item intermediate">4E</div>
-				<div class="slot-item intermediate">110</div>
-				<div class="slot-item intermediate">N</div>
-				<div class="slot-item char-state">N</div>
-			</div>
-		</div>
-		<span class="domain-suffix">.xyz</span>
-		<span class="terminal-cursor" aria-hidden="true">_</span>
-	</h1>
-	<div class="meta-row">
-		<div class="ascii-breakdown" aria-label="ASCII mapping explanation">
-			<span class="byte-chip" id="chip-1">
-				<span class="chip-dec">67</span><span class="chip-arrow">→</span><span class="chip-char">'C'</span>
-			</span>
-			<span class="byte-sep">+</span>
-			<span class="byte-chip" id="chip-2">
-				<span class="chip-dec">70</span><span class="chip-arrow">→</span><span class="chip-char">'F'</span>
-			</span>
-			<span class="byte-sep">+</span>
-			<span class="byte-chip" id="chip-3">
-				<span class="chip-dec">78</span><span class="chip-arrow">→</span><span class="chip-char">'N'</span>
-			</span>
-		</div>
+    <h1 class="domain-title" id="domain-title">
+        <!-- 67 > C -->
+        <div class="slot-container pair-1" data-slot="1">
+            <div class="slot-reel">
+                <div class="slot-item num-state">67</div>
+                <div class="slot-item intermediate">83</div>
+                <div class="slot-item intermediate">43</div>
+                <div class="slot-item intermediate">99</div>
+                <div class="slot-item intermediate">C</div>
+                <div class="slot-item char-state">C</div>
+            </div>
+        </div>
+        <!-- 70 > F -->
+        <div class="slot-container pair-2" data-slot="2">
+            <div class="slot-reel">
+                <div class="slot-item num-state">70</div>
+                <div class="slot-item intermediate">86</div>
+                <div class="slot-item intermediate">46</div>
+                <div class="slot-item intermediate">102</div>
+                <div class="slot-item intermediate">F</div>
+                <div class="slot-item char-state">F</div>
+            </div>
+        </div>
+        <!-- 78 > N -->
+        <div class="slot-container pair-3" data-slot="3">
+            <div class="slot-reel">
+                <div class="slot-item num-state">78</div>
+                <div class="slot-item intermediate">94</div>
+                <div class="slot-item intermediate">4E</div>
+                <div class="slot-item intermediate">110</div>
+                <div class="slot-item intermediate">N</div>
+                <div class="slot-item char-state">N</div>
+            </div>
+        </div>
+        <span class="domain-suffix">.xyz</span>
+        <span class="terminal-cursor" aria-hidden="true">_</span>
+    </h1>
+    <div class="meta-row">
+        <div class="ascii-breakdown" aria-label="ASCII mapping explanation">
+            <span class="byte-chip" id="chip-1">
+                <span class="chip-dec">67</span><span class="chip-arrow">→</span><span class="chip-char">'C'</span>
+            </span>
+            <span class="byte-sep">+</span>
+            <span class="byte-chip" id="chip-2">
+                <span class="chip-dec">70</span><span class="chip-arrow">→</span><span class="chip-char">'F'</span>
+            </span>
+            <span class="byte-sep">+</span>
+            <span class="byte-chip" id="chip-3">
+                <span class="chip-dec">78</span><span class="chip-arrow">→</span><span class="chip-char">'N'</span>
+            </span>
+        </div>
         <ThemeToggle />
-	</div>
+    </div>
 </div>
 
 <style>
-	.title-wrapper {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		width: 100%;
-		padding: 2.5rem 2rem;
-		background-color: var(--bg-surface);
-		border: 1px solid var(--border-main);
-		position: relative;
-	}
+    .title-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        padding: 2.5rem 2rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-main);
+        position: relative;
+    }
 
-	@media (max-width: 640px) {
-		.title-wrapper {
-			padding: 1.5rem 1rem;
-		}
-	}
+    @media (max-width: 640px) {
+        .title-wrapper {
+            padding: 1.5rem 1rem;
+        }
+    }
 
-	.domain-title {
-		margin: 0;
-		font-size: clamp(2.5rem, 8vw, 5.5rem);
-		font-weight: 700;
-		line-height: 1.1;
-		color: var(--text-primary);
-		display: flex;
-		align-items: baseline;
-		user-select: none;
-		letter-spacing: -0.02em;
-		white-space: nowrap;
-		cursor: pointer;
-	}
+    .domain-title {
+        margin: 0;
+        font-size: clamp(2.5rem, 8vw, 5.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--text-primary);
+        display: flex;
+        align-items: baseline;
+        user-select: none;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+        cursor: pointer;
+    }
 
-	.slot-container {
-		display: inline-block;
-		height: 1.15em;
-		overflow: hidden;
-		vertical-align: baseline;
-		position: relative;
-		width: 2.05ch;
-		transition: width 0.65s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
-	}
+    .slot-container {
+        display: inline-block;
+        height: 1.15em;
+        overflow: hidden;
+        vertical-align: baseline;
+        position: relative;
+        width: 2.05ch;
+        transition: width 0.65s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+    }
 
-	.title-wrapper.is-ascii .slot-container {
-		width: 1.05ch;
-	}
+    .title-wrapper.is-ascii .slot-container {
+        width: 1.05ch;
+    }
 
-	.slot-reel {
-		display: flex;
-		flex-direction: column;
-		transform: translateY(0);
-		transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
-		will-change: transform;
-	}
+    .slot-reel {
+        display: flex;
+        flex-direction: column;
+        transform: translateY(0);
+        transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform;
+    }
 
-	.slot-item {
-		height: 1.15em;
-		line-height: 1.15em;
-		display: flex;
-		align-items: center;
-		justify-content: flex-start;
-		color: var(--text-primary);
-	}
+    .slot-item {
+        height: 1.15em;
+        line-height: 1.15em;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        color: var(--text-primary);
+    }
 
-	.slot-item.char-state {
-		color: var(--accent-green);
-		font-weight: 700;
-	}
+    .slot-item.char-state {
+        color: var(--accent-green);
+        font-weight: 700;
+    }
 
-	.slot-item.intermediate {
-		color: var(--text-muted);
-		opacity: 0.7;
-	}
+    .slot-item.intermediate {
+        color: var(--text-muted);
+        opacity: 0.7;
+    }
 
-	/* When converted to ascii, the reel translates to the bottom character */
-	.title-wrapper.is-ascii .slot-container .slot-reel {
-		transform: translateY(-83.3333%);
-	}
+    /* When converted to ascii, the reel translates to the bottom character */
+    .title-wrapper.is-ascii .slot-container .slot-reel {
+        transform: translateY(-83.3333%);
+    }
 
-	/* Staggered transition delays for slot reel */
-	.title-wrapper.is-ascii .pair-1 .slot-reel {
-		transition-delay: 0.0s;
-	}
-	.title-wrapper.is-ascii .pair-2 .slot-reel {
-		transition-delay: 0.12s;
-	}
-	.title-wrapper.is-ascii .pair-3 .slot-reel {
-		transition-delay: 0.24s;
-	}
+    /* Staggered transition delays for slot reel */
+    .title-wrapper.is-ascii .pair-1 .slot-reel {
+        transition-delay: 0.0s;
+    }
+    .title-wrapper.is-ascii .pair-2 .slot-reel {
+        transition-delay: 0.12s;
+    }
+    .title-wrapper.is-ascii .pair-3 .slot-reel {
+        transition-delay: 0.24s;
+    }
 
-	/* Staggered width contractions */
-	.title-wrapper.is-ascii .pair-1 {
-		transition-delay: 0.2s;
-	}
-	.title-wrapper.is-ascii .pair-2 {
-		transition-delay: 0.32s;
-	}
-	.title-wrapper.is-ascii .pair-3 {
-		transition-delay: 0.44s;
-	}
+    /* Staggered width contractions */
+    .title-wrapper.is-ascii .pair-1 {
+        transition-delay: 0.2s;
+    }
+    .title-wrapper.is-ascii .pair-2 {
+        transition-delay: 0.32s;
+    }
+    .title-wrapper.is-ascii .pair-3 {
+        transition-delay: 0.44s;
+    }
 
-	/* Suffix */
-	.domain-suffix {
-		color: var(--accent-green-dim);
-		transition: color 0.3s ease;
-	}
+    /* Suffix */
+    .domain-suffix {
+        color: var(--accent-green-dim);
+        transition: color 0.3s ease;
+    }
 
-	.title-wrapper.is-ascii .domain-suffix {
-		color: var(--accent-muted);
-	}
+    .title-wrapper.is-ascii .domain-suffix {
+        color: var(--accent-muted);
+    }
 
-	/* Terminal blinking cursor */
-	.terminal-cursor {
-		display: inline-block;
-		color: var(--accent-green);
-		font-weight: 400;
-		margin-left: 0.1em;
-		animation: cursor-blink 1.05s ease-in-out infinite;
-		will-change: opacity;
-	}
+    /* Terminal blinking cursor */
+    .terminal-cursor {
+        display: inline-block;
+        color: var(--accent-green);
+        font-weight: 400;
+        margin-left: 0.1em;
+        animation: cursor-blink 1.05s ease-in-out infinite;
+        will-change: opacity;
+    }
 
-	@keyframes cursor-blink {
-		0%, 100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0;
-		}
-	}
+    @keyframes cursor-blink {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0;
+        }
+    }
 
-	/* Bottom Meta Row */
-	.meta-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		width: 100%;
-		margin-top: 1.75rem;
-		padding-top: 1.25rem;
-		border-top: 1px solid var(--border-subtle);
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
+    /* Bottom Meta Row */
+    .meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 1.75rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border-subtle);
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
 
-	.ascii-breakdown {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.8125rem;
-	}
+    .ascii-breakdown {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+    }
 
-	.byte-chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.5rem;
-		background-color: var(--bg-surface-elevated);
-		border: 1px solid var(--border-main);
-		transition: all 0.3s ease;
-	}
+    .byte-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--bg-surface-elevated);
+        border: 1px solid var(--border-main);
+        transition: all 0.3s ease;
+    }
 
-	.title-wrapper.is-ascii .byte-chip {
-		border-color: var(--border-highlight);
-		background-color: var(--bg-surface-hover);
-	}
+    .title-wrapper.is-ascii .byte-chip {
+        border-color: var(--border-highlight);
+        background-color: var(--bg-surface-hover);
+    }
 
-	.chip-dec {
-		color: var(--text-secondary);
-		font-weight: 500;
-	}
+    .chip-dec {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
 
-	.chip-arrow {
-		color: var(--text-muted);
-	}
+    .chip-arrow {
+        color: var(--text-muted);
+    }
 
-	.chip-char {
-		color: var(--accent-green);
-		font-weight: 700;
-	}
+    .chip-char {
+        color: var(--accent-green);
+        font-weight: 700;
+    }
 
-	.byte-sep {
-		color: var(--text-muted);
-	}
+    .byte-sep {
+        color: var(--text-muted);
+    }
 
-	/* Reduced motion accessibility */
-	@media (prefers-reduced-motion: reduce) {
-		.slot-reel,
-		.slot-container,
-		.terminal-cursor {
-			transition: none !important;
-			animation: none !important;
-		}
-	}
+    /* Reduced motion accessibility */
+    @media (prefers-reduced-motion: reduce) {
+        .slot-reel,
+        .slot-container,
+        .terminal-cursor {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
 </style>
 
 <script>
-	function initTitleAnimation() {
-		const wrapper = document.getElementById('title-wrapper');
-		const titleElement = document.getElementById('domain-title');
+    function initTitleAnimation() {
+        const wrapper = document.getElementById('title-wrapper');
+        const titleElement = document.getElementById('domain-title');
 
-		if (!wrapper) return;
-		let isAscii = false;
+        if (!wrapper) return;
+        let isAscii = false;
 
-		function setAsciiState(active: boolean) {
-			isAscii = active;
+        function setAsciiState(active: boolean) {
+            isAscii = active;
             if (isAscii) { wrapper?.classList.add('is-ascii'); }
             else { wrapper?.classList.remove('is-ascii'); }
-		}
+        }
 
-		const initialTimer = setTimeout(() => {
-			setAsciiState(true);
-		}, 1000);
+        const initialTimer = setTimeout(() => {
+            setAsciiState(true);
+        }, 1000);
 
-		titleElement?.addEventListener('click', () => {
-			clearTimeout(initialTimer);
-			setAsciiState(!isAscii);
-		});
-	}
+        titleElement?.addEventListener('click', () => {
+            clearTimeout(initialTimer);
+            setAsciiState(!isAscii);
+        });
+    }
 
-	function init() {
-		initTitleAnimation();
-	}
+    function init() {
+        initTitleAnimation();
+    }
 
-	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
-	document.addEventListener('astro:page-load', init);
+    document.addEventListener('astro:page-load', init);
 </script>

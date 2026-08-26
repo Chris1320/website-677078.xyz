@@ -1,131 +1,131 @@
 <section class="wip-section" aria-label="Page under construction">
-	<div class="wip-container">
+    <div class="wip-container">
         <pre class="ascii-face" id="ascii-face" aria-hidden="true">
 
 ┌─────────┐
 │  x   x  │
 │   ---   │
 └─────────┘</pre>
-		<div class="wip-message">
-			<p><span class="prompt">&gt;</span> Welp,</p>
-			<p><span class="prompt">&gt;</span> I have not yet completed the contents of this page.</p>
-			<p><span class="prompt">&gt;</span> Please check back later.</p>
-			<p><span class="prompt">&gt;</span> <span id="silly-msg">...or tomorrow?</span></p>
-		</div>
-	</div>
+        <div class="wip-message">
+            <p><span class="prompt">&gt;</span> Welp,</p>
+            <p><span class="prompt">&gt;</span> I have not yet completed the contents of this page.</p>
+            <p><span class="prompt">&gt;</span> Please check back later.</p>
+            <p><span class="prompt">&gt;</span> <span id="silly-msg">...or tomorrow?</span></p>
+        </div>
+    </div>
 </section>
 
 <style>
-	.wip-section {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		background-color: var(--bg-surface);
-		border: 1px solid var(--border-main);
-		padding: 1.75rem 2rem;
-		margin-top: 1.5rem;
-		position: relative;
-	}
+    .wip-section {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-main);
+        padding: 1.75rem 2rem;
+        margin-top: 1.5rem;
+        position: relative;
+    }
 
-	@media (max-width: 640px) {
-		.wip-section {
-			padding: 1.25rem 1rem;
-		}
-	}
+    @media (max-width: 640px) {
+        .wip-section {
+            padding: 1.25rem 1rem;
+        }
+    }
 
-	.wip-container {
-		display: flex;
-		align-items: flex-start;
-		gap: 1.75rem;
-	}
+    .wip-container {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.75rem;
+    }
 
-	@media (max-width: 520px) {
-		.wip-container {
-			flex-direction: column;
-			gap: 1rem;
-		}
-	}
+    @media (max-width: 520px) {
+        .wip-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
+    }
 
-	.ascii-face {
-		margin: 0;
-		font-family: var(--font-mono);
-		font-size: 1rem;
-		line-height: 1.3;
-		color: var(--accent-green);
-		user-select: none;
-		white-space: pre;
-	}
+    .ascii-face {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-size: 1rem;
+        line-height: 1.3;
+        color: var(--accent-green);
+        user-select: none;
+        white-space: pre;
+    }
 
-	.wip-message {
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-	}
+    .wip-message {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
 
-	.wip-message p {
-		margin: 0;
-		color: var(--text-secondary);
-		font-size: 1rem;
-		line-height: 1.5;
-	}
+    .wip-message p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 1rem;
+        line-height: 1.5;
+    }
 
-	.prompt {
-		color: var(--accent-green);
-		font-weight: 700;
-		margin-right: 0.35rem;
-	}
+    .prompt {
+        color: var(--accent-green);
+        font-weight: 700;
+        margin-right: 0.35rem;
+    }
 </style>
 
 <script>
-	const sillyEntries = [
-		{
-			msg: "...or tomorrow?",
-			face: "\n┌─────────┐\n│  x   x  │\n│   ---   │\n└─────────┘"
-		},
-		{
-			msg: "I'm currently procrastinating.",
-			face: "\n┌─────────┐\n│ - _ - zZ│\n│         │\n└─────────┘"
-		},
-		{
-			msg: "Unless you like this ASCII face? I made it, heh.",
-			face: "\n┌─────────┐\n│ O  v  O │\n│  )   (  │\n└─────────┘"
-		},
-		{
-			msg: "I promise I'm working on it!",
-			face: "\n┌─────────┐\n│  ^   ^  │\n│    v    │\n└─────────┘"
-		},
-		{
-			msg: "I'm still drinking my coffee.",
-			face: "\n\n   (\\__/)  \n  ( >.< ) ☕\n   / > <\\  "
-		},
-		{
-			msg: "UwU",
-			face: "\n┌─────────┐\n│  ᵘ ᵕ ᵘ  │\n│         │\n└─────────┘"
-		},
-		{
-			msg: "💥💢",
-			face: "\n\n\n ( ╯°□°)╯ ┻━┻"
-		}
-	];
+    const sillyEntries = [
+        {
+            msg: "...or tomorrow?",
+            face: "\n┌─────────┐\n│  x   x  │\n│   ---   │\n└─────────┘"
+        },
+        {
+            msg: "I'm currently procrastinating.",
+            face: "\n┌─────────┐\n│ - _ - zZ│\n│         │\n└─────────┘"
+        },
+        {
+            msg: "Unless you like this ASCII face? I made it, heh.",
+            face: "\n┌─────────┐\n│ O  v  O │\n│  )   (  │\n└─────────┘"
+        },
+        {
+            msg: "I promise I'm working on it!",
+            face: "\n┌─────────┐\n│  ^   ^  │\n│    v    │\n└─────────┘"
+        },
+        {
+            msg: "I'm still drinking my coffee.",
+            face: "\n\n   (\\__/)  \n  ( >.< ) ☕\n   / > <\\  "
+        },
+        {
+            msg: "UwU",
+            face: "\n┌─────────┐\n│  ᵘ ᵕ ᵘ  │\n│         │\n└─────────┘"
+        },
+        {
+            msg: "💥💢",
+            face: "\n\n\n ( ╯°□°)╯ ┻━┻"
+        }
+    ];
 
-	function pickMessage() {
-		const textEl = document.getElementById('silly-msg');
-		const faceEl = document.getElementById('ascii-face');
+    function pickMessage() {
+        const textEl = document.getElementById('silly-msg');
+        const faceEl = document.getElementById('ascii-face');
 
-		const randomEntry = sillyEntries[Math.floor(Math.random() * sillyEntries.length)];
+        const randomEntry = sillyEntries[Math.floor(Math.random() * sillyEntries.length)];
 
-		if (textEl && randomEntry) {
-			textEl.textContent = randomEntry.msg;
-		}
-		if (faceEl && randomEntry) {
-			faceEl.textContent = randomEntry.face;
-		}
-	}
+        if (textEl && randomEntry) {
+            textEl.textContent = randomEntry.msg;
+        }
+        if (faceEl && randomEntry) {
+            faceEl.textContent = randomEntry.face;
+        }
+    }
 
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', pickMessage);
-	} else {
-		pickMessage();
-	}
-	document.addEventListener('astro:page-load', pickMessage);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', pickMessage);
+    } else {
+        pickMessage();
+    }
+    document.addEventListener('astro:page-load', pickMessage);
 </script>
