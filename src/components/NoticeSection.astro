@@ -1,0 +1,45 @@
+<section class="notice-section" aria-labelledby="notice-heading">
+	<p class="notice-statement">
+    For any inquiries, please send an email to <a href="mailto:admin@677078.xyz" class="inline-email">admin@677078.xyz</a>.
+    For security concerns, please send an email to <a href="mailto:security@677078.xyz" class="inline-email">security@677078.xyz</a>.
+	</p>
+</section>
+
+<style>
+	.notice-section {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		background-color: var(--bg-surface);
+		border: 1px solid var(--border-main);
+		padding: 2rem;
+		margin-top: 1.5rem;
+		position: relative;
+	}
+
+	@media (max-width: 640px) {
+		.notice-section {
+			padding: 1.5rem 1rem;
+		}
+	}
+
+	.notice-statement {
+		margin: 0;
+		color: var(--text-secondary);
+		font-size: 1rem;
+		line-height: 1.7;
+	}
+
+	.inline-email {
+		color: var(--accent-green-bright);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		font-weight: 600;
+		transition: color 0.2s ease;
+	}
+
+	.inline-email:hover {
+		color: #ffffff;
+		background-color: var(--accent-green-glow);
+	}
+</style>
