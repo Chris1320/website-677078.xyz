@@ -11,6 +11,10 @@ const {
 
 import '@fontsource/maple-mono/400.css';
 import '@fontsource/maple-mono/700.css';
+
+import '../styles/global.css';
+
+import Footer from '../components/Footer.astro';
 ---
 
 <!doctype html>
@@ -28,12 +32,14 @@ import '@fontsource/maple-mono/700.css';
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content="https://677078.xyz" />
 		<meta name="theme-color" content="#060907" />
-
 	</head>
 	<body>
 		<div class="grid-background" aria-hidden="true"></div>
 		<main class="page-container">
-			<slot />
+			<div class="page-content">
+				<slot />
+			</div>
+			<Footer />
 		</main>
 	</body>
 </html>
@@ -110,6 +116,10 @@ import '@fontsource/maple-mono/700.css';
 		padding: 2.5rem 1.5rem;
 		max-width: 960px;
 		margin: 0 auto;
+	}
+
+	.page-content {
+		width: 100%;
 	}
 
 	@media (max-width: 640px) {
