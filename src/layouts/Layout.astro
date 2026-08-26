@@ -31,7 +31,19 @@ import Footer from '../components/Footer.astro';
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content="https://677078.xyz" />
-		<meta name="theme-color" content="#060a08" />
+		<meta name="theme-color" content="#060a08" id="theme-color-meta" />
+
+		<script is:inline>
+			(function () {
+				const storedTheme = typeof localStorage !== 'undefined' && localStorage.getItem('theme');
+				const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+				document.documentElement.setAttribute('data-theme', theme);
+				const metaTheme = document.getElementById('theme-color-meta');
+				if (metaTheme) {
+					metaTheme.setAttribute('content', theme === 'light' ? '#f4f8f6' : '#060a08');
+				}
+			})();
+		</script>
 	</head>
 	<body>
 		<div class="grid-background" aria-hidden="true"></div>
@@ -45,7 +57,8 @@ import Footer from '../components/Footer.astro';
 </html>
 
 <style is:global>
-	:root {
+	:root,
+	[data-theme="dark"] {
 		--bg-primary: #060a08;
 		--bg-surface: #0b130f;
 		--bg-surface-elevated: #101c16;
@@ -69,6 +82,29 @@ import Footer from '../components/Footer.astro';
 
 		--font-mono: 'Maple Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 			'Liberation Mono', 'Courier New', monospace;
+	}
+
+	[data-theme="light"] {
+		--bg-primary: #f4f8f6;
+		--bg-surface: #ffffff;
+		--bg-surface-elevated: #ebf4ef;
+		--bg-surface-hover: #dfeee5;
+
+		--border-subtle: #d3e5dc;
+		--border-main: #9fc1b2;
+		--border-highlight: #208b68;
+
+		--text-primary: #0c2017;
+		--text-secondary: #2f5445;
+		--text-muted: #5d8172;
+		--text-inverse: #ffffff;
+
+		--accent-green: #1b8562;
+		--accent-green-dim: #439a7b;
+		--accent-green-bright: #126348;
+		--accent-green-glow: rgba(100, 200, 165, 0.25);
+
+		--grid-line-color: rgba(27, 133, 98, 0.045);
 	}
 
 	*,

@@ -1,0 +1,72 @@
+<button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme">
+    <span class="btn-bracket">[</span>
+    <span class="theme-label" id="theme-label">DARK</span>
+    <span class="btn-bracket">]</span>
+</button>
+
+<style>
+	.theme-toggle-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		background-color: var(--bg-surface-elevated);
+		color: var(--text-primary);
+		border: 1px solid var(--border-main);
+		padding: 0.25rem 0.65rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.05em;
+		transition: all 0.2s ease;
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.theme-toggle-btn:hover {
+		background-color: var(--accent-green);
+		color: var(--text-inverse);
+		border-color: var(--accent-green);
+	}
+
+	.theme-toggle-btn:hover .btn-bracket {
+		color: var(--text-inverse);
+	}
+
+	.btn-bracket {
+		color: var(--accent-green-dim);
+		transition: color 0.2s ease;
+	}
+
+</style>
+
+<script>
+	function initThemeToggle() {
+		const toggleBtn = document.getElementById('theme-toggle-btn');
+		const labelEl = document.getElementById('theme-label');
+		const metaTheme = document.getElementById('theme-color-meta');
+
+		function updateThemeUI(theme: string) {
+			if (labelEl) labelEl.textContent = theme === 'light' ? 'LIGHT' : 'DARK';
+			if (metaTheme) {
+				metaTheme.setAttribute('content', theme === 'light' ? '#f4f8f6' : '#060a08');
+			}
+		}
+
+		const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+		updateThemeUI(currentTheme);
+
+		toggleBtn?.addEventListener('click', () => {
+			const activeTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+			document.documentElement.setAttribute('data-theme', activeTheme);
+			localStorage.setItem('theme', activeTheme);
+			updateThemeUI(activeTheme);
+		});
+	}
+
+    function init() {
+		initThemeToggle();
+    }
+
+	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+    else { init(); }
+	document.addEventListener('astro:page-load', init);
+</script>
