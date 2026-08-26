@@ -1,13 +1,16 @@
 <section class="wip-section" aria-label="Page under construction">
 	<div class="wip-container">
-		<pre class="ascii-face" aria-hidden="true">
- X      X 
-   --v-   
-		</pre>
+        <pre class="ascii-face" id="ascii-face" aria-hidden="true">
+
+┌─────────┐
+│  x   x  │
+│   ---   │
+└─────────┘</pre>
 		<div class="wip-message">
 			<p><span class="prompt">&gt;</span> Welp,</p>
 			<p><span class="prompt">&gt;</span> I have not yet completed the contents of this page.</p>
 			<p><span class="prompt">&gt;</span> Please check back later.</p>
+			<p><span class="prompt">&gt;</span> <span id="silly-msg">...or tomorrow?</span></p>
 		</div>
 	</div>
 </section>
@@ -72,3 +75,57 @@
 		margin-right: 0.35rem;
 	}
 </style>
+
+<script>
+	const sillyEntries = [
+		{
+			msg: "...or tomorrow?",
+			face: "\n┌─────────┐\n│  x   x  │\n│   ---   │\n└─────────┘"
+		},
+		{
+			msg: "I'm currently procrastinating.",
+			face: "\n┌─────────┐\n│ - _ - zZ│\n│         │\n└─────────┘"
+		},
+		{
+			msg: "Unless you like this ASCII face? I made it, heh.",
+			face: "\n┌─────────┐\n│ O  v  O │\n│  )   (  │\n└─────────┘"
+		},
+		{
+			msg: "I promise I'm working on it!",
+			face: "\n┌─────────┐\n│  ^   ^  │\n│    v    │\n└─────────┘"
+		},
+		{
+			msg: "I'm still drinking my coffee.",
+			face: "\n\n   (\\__/)  \n  ( >.< ) ☕\n   / > <\\  "
+		},
+		{
+			msg: "UwU",
+			face: "\n┌─────────┐\n│  ᵘ ᵕ ᵘ  │\n│         │\n└─────────┘"
+		},
+		{
+			msg: "💥💢",
+			face: "\n\n\n ( ╯°□°)╯ ┻━┻"
+		}
+	];
+
+	function pickMessage() {
+		const textEl = document.getElementById('silly-msg');
+		const faceEl = document.getElementById('ascii-face');
+
+		const randomEntry = sillyEntries[Math.floor(Math.random() * sillyEntries.length)];
+
+		if (textEl && randomEntry) {
+			textEl.textContent = randomEntry.msg;
+		}
+		if (faceEl && randomEntry) {
+			faceEl.textContent = randomEntry.face;
+		}
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', pickMessage);
+	} else {
+		pickMessage();
+	}
+	document.addEventListener('astro:page-load', pickMessage);
+</script>
