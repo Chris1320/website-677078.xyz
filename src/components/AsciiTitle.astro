@@ -1,5 +1,6 @@
 ---
 import ThemeToggle from './ThemeToggle.astro';
+import AnimationToggle from './AnimationToggle.astro';
 ---
 
 <div class="title-wrapper" id="title-wrapper">
@@ -54,7 +55,10 @@ import ThemeToggle from './ThemeToggle.astro';
                 <span class="chip-dec">78</span><span class="chip-arrow">→</span><span class="chip-char">'N'</span>
             </span>
         </div>
-        <ThemeToggle />
+        <div class="meta-controls">
+            <AnimationToggle />
+            <ThemeToggle />
+        </div>
     </div>
 </div>
 
@@ -238,6 +242,21 @@ import ThemeToggle from './ThemeToggle.astro';
 
     .byte-sep {
         color: var(--text-muted);
+    }
+
+    .meta-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Disable animation */
+    /* Should we also disable cursor blinking? */
+    :global([data-anim="simple"]) .slot-reel,
+    :global([data-anim="simple"]) .slot-container,
+    :global([data-anim="simple"]) .domain-suffix {
+        transition: none !important;
     }
 
     /* Reduced motion accessibility */

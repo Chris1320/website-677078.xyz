@@ -1,0 +1,67 @@
+<button type="button" class="anim-toggle-btn" id="anim-toggle-btn" aria-label="Toggle animation mode">
+    <span class="btn-bracket">[</span>
+    <span class="anim-label" id="anim-label">FANCY</span>
+    <span class="btn-bracket">]</span>
+</button>
+
+<style>
+    .anim-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background-color: var(--bg-surface-elevated);
+        color: var(--text-primary);
+        border: 1px solid var(--border-main);
+        padding: 0.25rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .anim-toggle-btn:hover {
+        background-color: var(--accent-green);
+        color: var(--text-inverse);
+        border-color: var(--accent-green);
+    }
+
+    .anim-toggle-btn:hover .btn-bracket {
+        color: var(--text-inverse);
+    }
+
+    .btn-bracket {
+        color: var(--accent-green-dim);
+        transition: color 0.2s ease;
+    }
+</style>
+
+<script>
+    function initAnimToggle() {
+        const toggleBtn = document.getElementById('anim-toggle-btn');
+        const labelEl = document.getElementById('anim-label');
+
+        function updateAnimUI(mode: string) {
+            if (labelEl) labelEl.textContent = mode === 'simple' ? 'SIMPLE' : 'FANCY';
+        }
+
+        const currentMode = document.documentElement.getAttribute('data-anim') || 'fancy';
+        updateAnimUI(currentMode);
+
+        toggleBtn?.addEventListener('click', () => {
+            const activeMode = document.documentElement.getAttribute('data-anim') === 'simple' ? 'fancy' : 'simple';
+            document.documentElement.setAttribute('data-anim', activeMode);
+            localStorage.setItem('anim-mode', activeMode);
+            updateAnimUI(activeMode);
+        });
+    }
+
+    function init() {
+        initAnimToggle();
+    }
+
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+    else { init(); }
+    document.addEventListener('astro:page-load', init);
+</script>

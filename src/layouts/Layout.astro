@@ -42,6 +42,10 @@ import Footer from '../components/Footer.astro';
                 if (metaTheme) {
                     metaTheme.setAttribute('content', theme === 'light' ? '#f4f8f6' : '#060a08');
                 }
+
+                const storedAnim = typeof localStorage !== 'undefined' && localStorage.getItem('anim-mode');
+                const anim = storedAnim || 'fancy';
+                document.documentElement.setAttribute('data-anim', anim);
             })();
         </script>
     </head>
