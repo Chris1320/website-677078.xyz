@@ -1,7 +1,9 @@
 import { drizzle } from "drizzle-orm/d1";
+import { env as cfEnv } from "cloudflare:workers";
 import * as schema from "./schema";
 
-export function getDb(env: any) {
+export function getDb(customEnv?: Partial<Env>) {
+  const env = (customEnv || cfEnv) as Env;
   const d1 = env?.website_677078_xyz_db;
   if (!d1) {
     throw new Error(
@@ -11,7 +13,8 @@ export function getDb(env: any) {
   return drizzle(d1, { schema });
 }
 
-export function getMediaBucket(env: any) {
+export function getMediaBucket(customEnv?: Partial<Env>) {
+  const env = (customEnv || cfEnv) as Env;
   const bucket = env?.website_677078_xyz_media;
   if (!bucket) {
     throw new Error(

@@ -6,8 +6,7 @@ export const prerender = false;
 
 export const GET: APIRoute = async (context) => {
   try {
-    const runtimeEnv = (context.locals as any).runtime?.env;
-    const db = getDb(runtimeEnv);
+    const db = getDb();
 
     const assets = await db
       .select()

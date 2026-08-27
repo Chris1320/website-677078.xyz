@@ -18,9 +18,8 @@ export const DELETE: APIRoute = async (context) => {
   }
 
   try {
-    const runtimeEnv = (context.locals as any).runtime?.env;
-    const db = getDb(runtimeEnv);
-    const bucket = getMediaBucket(runtimeEnv);
+    const db = getDb();
+    const bucket = getMediaBucket();
 
     const asset = await db
       .select()

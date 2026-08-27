@@ -11,8 +11,7 @@ export const GET: APIRoute = async (context) => {
   }
 
   try {
-    const runtimeEnv = (context.locals as any).runtime?.env;
-    const bucket = getMediaBucket(runtimeEnv);
+    const bucket = getMediaBucket();
     const object = await bucket.get(filename);
 
     if (!object) {
