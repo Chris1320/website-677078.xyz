@@ -14,15 +14,15 @@
   },
   "d1_databases": [
     {
-      "binding": "website_677078_xyz",
+      "binding": "website_677078_xyz_db",
       "database_name": "website-677078_xyz",
       "database_id": "fe2cfe9d-50b2-473e-9c60-6bc369004977",
     },
   ],
   "r2_buckets": [
     {
+      "binding": "website_677078_xyz_media",
       "bucket_name": "website-677078-xyz",
-      "binding": "website_677078_xyz",
     },
   ],
 }
