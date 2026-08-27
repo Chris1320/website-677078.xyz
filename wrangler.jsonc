@@ -12,4 +12,11 @@
   "assets": {
     "directory": "./dist",
   },
+  "d1_databases": [
+    {
+      "binding": "website_677078_xyz",
+      "database_name": "website-677078_xyz",
+      "database_id": "fe2cfe9d-50b2-473e-9c60-6bc369004977",
+    },
+  ],
 }
