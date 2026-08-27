@@ -99,8 +99,8 @@ export const PUT: APIRoute = async (context) => {
       });
     }
 
-    const body = await context.request.json();
-    const { title, description, content, status, tags: rawTags } = body;
+    const body = (await context.request.json()) as any;
+    const { title, description, content, status, tags: rawTags } = body || {};
 
     const updatedTitle =
       typeof title === "string" && title.trim()

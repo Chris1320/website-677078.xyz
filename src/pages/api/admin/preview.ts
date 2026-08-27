@@ -5,8 +5,8 @@ export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
   try {
-    const body = await context.request.json();
-    const markdown = typeof body.markdown === "string" ? body.markdown : "";
+    const body = (await context.request.json()) as any;
+    const markdown = typeof body?.markdown === "string" ? body.markdown : "";
     const html = await renderMarkdown(markdown);
 
     return new Response(JSON.stringify({ html }), {

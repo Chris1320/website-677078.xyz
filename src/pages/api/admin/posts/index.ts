@@ -84,14 +84,14 @@ export const POST: APIRoute = async (context) => {
   try {
     const db = getDb();
 
-    const body = await context.request.json();
+    const body = (await context.request.json()) as any;
     const {
       title,
       description = "",
       content,
       status = "draft",
       tags: rawTags = [],
-    } = body;
+    } = body || {};
 
     if (!title || typeof title !== "string" || !title.trim()) {
       return new Response(JSON.stringify({ error: "Title is required" }), {

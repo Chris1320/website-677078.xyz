@@ -94,7 +94,7 @@ function fetchPreview() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markdown: content.value }),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       previewHtml.value =
         data.html || '<p class="text-[var(--text-muted)]">> Empty document</p>';
     } catch {
@@ -156,7 +156,7 @@ async function uploadFile(file: File) {
       body: formData,
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
     if (!res.ok) {
       throw new Error(data.error || "Upload failed");
     }
@@ -215,13 +215,78 @@ function handleFileInputChange(e: Event) {
   target.value = "";
 }
 
+function extractRefs(markdown: string): string[] {
+  const references = new Set<string>();
+  if (!markdown) return [];
+  const obsidianEmbedRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = obsidianEmbedRegex.exec(markdown)) !== null) {
+    const filename = match[1].trim();
+    if (filename) references.add(filename);
+  }
+  const markdownImgRegex =
+    /!\[.*?\]\((?:(?:\/media\/)|(?:media\/))?([^\s\)]+)\)/g;
+  while ((match = markdownImgRegex.exec(markdown)) !== null) {
+    const filename = match[1].trim();
+    if (
+      filename &&
+      !filename.startsWith("http://") &&
+      !filename.startsWith("https://")
+    ) {
+      references.add(filename);
+    }
+  }
+  return Array.from(references);
+}
+
+const initialMediaRefs = ref<string[]>(
+  extractRefs(props.initialPost?.content || ""),
+);
+const showOrphanModal = ref(false);
+const pendingPublishStatus = ref<"draft" | "published">("draft");
+const orphanedFilesToPrompt = ref<string[]>([]);
+
 // Save & Publish
-async function savePost(publishStatus: "draft" | "published") {
+function savePost(publishStatus: "draft" | "published") {
   if (!title.value.trim()) {
     errorMessage.value = "Please enter a post title.";
     return;
   }
 
+  if (isEditing.value) {
+    const currentRefs = extractRefs(content.value);
+    const removed = initialMediaRefs.value.filter(
+      (r) => !currentRefs.includes(r),
+    );
+    if (removed.length > 0) {
+      orphanedFilesToPrompt.value = removed;
+      pendingPublishStatus.value = publishStatus;
+      showOrphanModal.value = true;
+      return;
+    }
+  }
+
+  executeSave(publishStatus);
+}
+
+async function confirmSaveWithOrphanChoice(deleteOrphans: boolean) {
+  showOrphanModal.value = false;
+  if (deleteOrphans && orphanedFilesToPrompt.value.length > 0) {
+    try {
+      await fetch("/api/admin/media/orphans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filenames: orphanedFilesToPrompt.value }),
+      });
+    } catch (delErr) {
+      console.error("Failed to delete orphans:", delErr);
+    }
+  }
+  await executeSave(pendingPublishStatus.value);
+  initialMediaRefs.value = extractRefs(content.value);
+}
+
+async function executeSave(publishStatus: "draft" | "published") {
   isSaving.value = true;
   errorMessage.value = "";
   successMessage.value = "";
@@ -247,7 +312,7 @@ async function savePost(publishStatus: "draft" | "published") {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
     if (!res.ok) {
       throw new Error(data.error || "Failed to save post");
     }
@@ -256,6 +321,7 @@ async function savePost(publishStatus: "draft" | "published") {
     isEditing.value = true;
     postId.value = data.post.id;
     slug.value = data.post.slug;
+    initialMediaRefs.value = extractRefs(content.value);
 
     successMessage.value =
       publishStatus === "published"
@@ -621,6 +687,71 @@ async function savePost(publishStatus: "draft" | "published") {
           class="p-6 overflow-y-auto max-h-175 prose prose-invert prose-emerald max-w-none text-sm leading-relaxed"
           v-html="previewHtml"
         ></div>
+      </div>
+    </div>
+
+    <!-- Orphan Removal Confirmation Modal -->
+    <div
+      v-if="showOrphanModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+    >
+      <div
+        class="max-w-lg w-full border border-amber-500 bg-(--bg-surface) p-6 space-y-4 shadow-2xl"
+      >
+        <div
+          class="flex items-center gap-2 text-amber-400 text-sm font-bold uppercase tracking-wider"
+        >
+          <span>⚠️</span>
+          <span>[ORPHANED_MEDIA_DETECTED]</span>
+        </div>
+
+        <p class="text-xs text-(--text-primary) leading-relaxed">
+          The following media asset(s) were previously linked in this post but
+          are no longer referenced in your updated content:
+        </p>
+
+        <div
+          class="p-3 bg-(--bg-primary) border border-(--border-main) max-h-36 overflow-y-auto space-y-1"
+        >
+          <div
+            v-for="filename in orphanedFilesToPrompt"
+            :key="filename"
+            class="text-xs font-mono text-amber-300 truncate"
+          >
+            • {{ filename }}
+          </div>
+        </div>
+
+        <p class="text-xs text-(--text-secondary)">
+          Would you like to permanently delete these unreferenced files from R2
+          storage, or keep them stored?
+        </p>
+
+        <div
+          class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-(--border-subtle)"
+        >
+          <button
+            type="button"
+            @click="showOrphanModal = false"
+            class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-muted) hover:text-(--text-primary)"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmSaveWithOrphanChoice(false)"
+            class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-highlight) text-(--text-primary) hover:bg-(--bg-surface-elevated)"
+          >
+            Keep in R2 & Save
+          </button>
+          <button
+            type="button"
+            @click="confirmSaveWithOrphanChoice(true)"
+            class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold bg-amber-600 text-black hover:bg-amber-500"
+          >
+            Delete From R2 & Save
+          </button>
+        </div>
       </div>
     </div>
   </div>

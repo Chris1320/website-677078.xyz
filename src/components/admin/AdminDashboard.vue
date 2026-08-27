@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import PostList, { type PostItem } from "./PostList.vue";
 import PostEditor from "./PostEditor.vue";
+import MediaLibrary from "./MediaLibrary.vue";
 
 type Tab = "posts" | "editor" | "media";
 
@@ -16,7 +17,7 @@ async function fetchPosts() {
   errorMessage.value = "";
   try {
     const res = await fetch("/api/admin/posts");
-    const data = await res.json();
+    const data: any = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to fetch posts");
     posts.value = data.posts || [];
   } catch (err: any) {
@@ -46,7 +47,7 @@ async function handleDeletePost(post: PostItem) {
     const res = await fetch(`/api/admin/posts/${post.id}`, {
       method: "DELETE",
     });
-    const data = await res.json();
+    const data: any = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to delete post");
     await fetchPosts();
   } catch (err: any) {
@@ -146,27 +147,7 @@ onMounted(() => {
       @saved="handlePostSaved"
     />
 
-    <!-- Tab: Media Library (Placeholder for Milestone 5) -->
-    <div
-      v-else-if="currentTab === 'media'"
-      class="border border-(--border-main) bg-(--bg-surface) p-8 text-center space-y-4"
-    >
-      <div
-        class="text-(--accent-green) text-sm font-bold uppercase tracking-wider"
-      >
-        [MEDIA_LIBRARY]
-      </div>
-      <p class="text-xs text-(--text-secondary)">
-        Media library management and orphan file detection will be mounted in
-        Milestone 5.
-      </p>
-      <button
-        type="button"
-        @click="currentTab = 'posts'"
-        class="px-4 py-2 text-xs border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight)"
-      >
-        &larr; Back to Posts
-      </button>
-    </div>
+    <!-- Tab: Media Library -->
+    <MediaLibrary v-else-if="currentTab === 'media'" />
   </div>
 </template>

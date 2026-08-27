@@ -4,7 +4,7 @@ import { getDb, media } from "../../../db";
 
 export const prerender = false;
 
-export const GET: APIRoute = async (context) => {
+export const GET: APIRoute = async () => {
   try {
     const db = getDb();
 
