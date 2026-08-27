@@ -1,0 +1,76 @@
+import {
+  sqliteTable,
+  text,
+  integer,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
+import { relations } from "drizzle-orm";
+
+export const posts = sqliteTable("posts", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  content: text("content").notNull(),
+  status: text("status", { enum: ["draft", "published"] })
+    .notNull()
+    .default("draft"),
+  created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  published_at: integer("published_at", { mode: "timestamp_ms" }),
+});
+
+export const tags = sqliteTable("tags", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const post_tags = sqliteTable(
+  "post_tags",
+  {
+    post_id: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    tag_id: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.post_id, t.tag_id] })],
+);
+
+export const media = sqliteTable("media", {
+  id: text("id").primaryKey(),
+  filename: text("filename").notNull().unique(),
+  original_name: text("original_name").notNull(),
+  mime_type: text("mime_type").notNull(),
+  size_bytes: integer("size_bytes").notNull(),
+  created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const postsRelations = relations(posts, ({ many }) => ({
+  post_tags: many(post_tags),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  post_tags: many(post_tags),
+}));
+
+export const postTagsRelations = relations(post_tags, ({ one }) => ({
+  post: one(posts, {
+    fields: [post_tags.post_id],
+    references: [posts.id],
+  }),
+  tag: one(tags, {
+    fields: [post_tags.tag_id],
+    references: [tags.id],
+  }),
+}));
+
+export type Post = typeof posts.$inferSelect;
+export type InsertPost = typeof posts.$inferInsert;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = typeof tags.$inferInsert;
+export type Media = typeof media.$inferSelect;
+export type InsertMedia = typeof media.$inferInsert;
