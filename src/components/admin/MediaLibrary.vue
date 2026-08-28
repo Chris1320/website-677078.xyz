@@ -26,6 +26,16 @@ const orphanCount = ref(0);
 const inUseCount = ref(0);
 const loading = ref(false);
 const filter = ref<"all" | "in_use" | "orphans">("all");
+const sortBy = ref<
+  | "date_desc"
+  | "date_asc"
+  | "size_desc"
+  | "size_asc"
+  | "links_desc"
+  | "links_asc"
+  | "name_asc"
+  | "name_desc"
+>("date_desc");
 const searchQuery = ref("");
 const preserveFilename = ref(false);
 const isUploading = ref(false);
@@ -63,7 +73,7 @@ async function fetchMedia() {
 }
 
 const filteredMedia = computed(() => {
-  return mediaList.value.filter((item) => {
+  const filtered = mediaList.value.filter((item) => {
     if (filter.value === "in_use" && item.is_orphan) return false;
     if (filter.value === "orphans" && !item.is_orphan) return false;
 
@@ -74,6 +84,29 @@ const filteredMedia = computed(() => {
       item.filename.toLowerCase().includes(query) ||
       item.referenced_in.some((r) => r.title.toLowerCase().includes(query))
     );
+  });
+
+  return filtered.slice().sort((a, b) => {
+    switch (sortBy.value) {
+      case "date_desc":
+        return b.created_at - a.created_at;
+      case "date_asc":
+        return a.created_at - b.created_at;
+      case "size_desc":
+        return b.size_bytes - a.size_bytes;
+      case "size_asc":
+        return a.size_bytes - b.size_bytes;
+      case "links_desc":
+        return b.referenced_in.length - a.referenced_in.length;
+      case "links_asc":
+        return a.referenced_in.length - b.referenced_in.length;
+      case "name_asc":
+        return a.filename.localeCompare(b.filename);
+      case "name_desc":
+        return b.filename.localeCompare(a.filename);
+      default:
+        return b.created_at - a.created_at;
+    }
   });
 });
 
@@ -86,8 +119,8 @@ const paginatedMedia = computed(() => {
   return filteredMedia.value.slice(start, start + MEDIA_PAGE_SIZE);
 });
 
-// Reset page on search or filter change
-watch([searchQuery, filter], () => {
+// Reset page on search, filter, or sort change
+watch([searchQuery, filter, sortBy], () => {
   currentPage.value = 1;
 });
 
@@ -451,7 +484,7 @@ onMounted(() => {
 
     <div
       id="searchbar"
-      class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
+      class="flex flex-col md:flex-row items-stretch md:items-center gap-3"
     >
       <div class="flex-1 relative">
         <Icon
@@ -464,6 +497,72 @@ onMounted(() => {
           placeholder="Filter by filename or post title..."
           class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight) font-mono"
         />
+      </div>
+      <div class="flex items-center gap-2">
+        <div
+          class="flex items-center border border-(--border-main) bg-(--bg-surface) px-2.5 py-1.5 font-mono text-xs text-(--text-secondary)"
+        >
+          <Icon
+            icon="lucide:arrow-up-down"
+            class="w-3.5 h-3.5 mr-1.5 text-(--accent-green)"
+          />
+          <span class="text-[11px] text-(--text-muted) mr-1 uppercase"
+            >Sort:</span
+          >
+          <select
+            v-model="sortBy"
+            class="bg-transparent text-(--text-primary) font-mono focus:outline-none cursor-pointer pr-1"
+          >
+            <option
+              value="date_desc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Newest First
+            </option>
+            <option
+              value="date_asc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Oldest First
+            </option>
+            <option
+              value="size_desc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Size (Largest)
+            </option>
+            <option
+              value="size_asc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Size (Smallest)
+            </option>
+            <option
+              value="links_desc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Links (Most Used)
+            </option>
+            <option
+              value="links_asc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Links (Least Used)
+            </option>
+            <option
+              value="name_asc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Name (A-Z)
+            </option>
+            <option
+              value="name_desc"
+              class="bg-(--bg-surface) text-(--text-primary)"
+            >
+              Name (Z-A)
+            </option>
+          </select>
+        </div>
       </div>
       <div
         class="flex items-center gap-1 border border-(--border-main) p-1 bg-(--bg-surface)"
@@ -972,31 +1071,51 @@ onMounted(() => {
               }}
             </span>
           </div>
-          <div
-            class="w-16 h-16 bg-(--bg-surface-elevated) border border-(--border-subtle) flex items-center justify-center shrink-0 overflow-hidden"
-          >
-            <img
-              v-if="isImage(assetToDelete.mime_type)"
-              :src="`/media/${assetToDelete.filename}`"
-              :alt="assetToDelete.filename"
-              class="w-full h-full object-contain"
-            />
-            <Icon
-              v-else
-              icon="lucide:file"
-              class="w-8 h-8 text-(--text-muted)"
-            />
-          </div>
-          <div
-            class="font-bold text-(--text-primary) text-sm truncate"
-            :title="assetToDelete.filename"
-          >
-            {{ assetToDelete.filename }}
-          </div>
-          <div class="text-[11px] text-(--text-muted) flex items-center gap-4">
-            <span>{{ formatBytes(assetToDelete.size_bytes) }}</span>
-            <span>{{ assetToDelete.mime_type }}</span>
-            <span>{{ formatDate(assetToDelete.created_at) }}</span>
+          <div class="flex items-center gap-4 pt-1">
+            <div
+              class="w-18 h-18 bg-(--bg-surface-elevated) border border-(--border-subtle) flex items-center justify-center shrink-0 overflow-hidden"
+            >
+              <img
+                v-if="isImage(assetToDelete.mime_type)"
+                :src="`/media/${assetToDelete.filename}`"
+                :alt="assetToDelete.filename"
+                class="w-full h-full object-contain"
+              />
+              <div
+                v-else-if="isVideo(assetToDelete.mime_type)"
+                class="text-(--accent-green)"
+              >
+                <Icon icon="lucide:video" class="w-8 h-8" />
+              </div>
+              <div
+                v-else-if="isAudio(assetToDelete.mime_type)"
+                class="text-(--accent-green)"
+              >
+                <Icon icon="lucide:music" class="w-8 h-8" />
+              </div>
+              <Icon
+                v-else
+                icon="lucide:file"
+                class="w-8 h-8 text-(--text-muted)"
+              />
+            </div>
+            <div class="flex-1 min-w-0 space-y-1.5">
+              <div
+                class="font-bold text-(--text-primary) text-sm truncate"
+                :title="assetToDelete.filename"
+              >
+                {{ assetToDelete.filename }}
+              </div>
+              <div
+                class="text-[11px] text-(--text-muted) flex flex-wrap items-center gap-x-2.5 gap-y-0.5"
+              >
+                <span>{{ formatBytes(assetToDelete.size_bytes) }}</span>
+                <span>•</span>
+                <span>{{ assetToDelete.mime_type }}</span>
+                <span>•</span>
+                <span>{{ formatDate(assetToDelete.created_at) }}</span>
+              </div>
+            </div>
           </div>
         </div>
         <div
