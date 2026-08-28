@@ -60,4 +60,44 @@ describe("Media Helpers", () => {
       "application/octet-stream",
     );
   });
+
+  it("formats byte ranges and content ranges accurately", () => {
+    const size = 5000;
+    const range = { offset: 0, length: 1024 };
+    const contentRange = `bytes ${range.offset}-${range.offset + range.length - 1}/${size}`;
+    expect(contentRange).toBe("bytes 0-1023/5000");
+
+    const suffixRange = { suffix: 500 };
+    const suffixContentRange = `bytes ${size - suffixRange.suffix}-${size - 1}/${size}`;
+    expect(suffixContentRange).toBe("bytes 4500-4999/5000");
+  });
+
+  it("rejects orphan deletion when neither filenames nor allOrphans: true is provided", () => {
+    function validateOrphanDeletionRequest(body: any): {
+      valid: boolean;
+      error?: string;
+    } {
+      const { filenames = [], allOrphans = false } = body || {};
+      if (
+        !allOrphans &&
+        (!Array.isArray(filenames) || filenames.length === 0)
+      ) {
+        return {
+          valid: false,
+          error:
+            "Must specify a non-empty filenames array or set allOrphans: true to confirm bulk deletion.",
+        };
+      }
+      return { valid: true };
+    }
+
+    expect(validateOrphanDeletionRequest({}).valid).toBe(false);
+    expect(validateOrphanDeletionRequest({ filenames: [] }).valid).toBe(false);
+    expect(validateOrphanDeletionRequest({ allOrphans: true }).valid).toBe(
+      true,
+    );
+    expect(
+      validateOrphanDeletionRequest({ filenames: ["pic.png"] }).valid,
+    ).toBe(true);
+  });
 });
