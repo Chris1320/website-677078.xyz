@@ -6,6 +6,8 @@ import PostList, { type PostItem } from "./PostList.vue";
 import MediaLibrary from "./MediaLibrary.vue";
 import PostEditor from "./PostEditor.vue";
 import UserSettingsModal from "./UserSettingsModal.vue";
+import { extractMediaReferences } from "../../lib/markdown";
+import { findTrueOrphans, pruneOrphanFiles } from "../../lib/media";
 
 type Tab = "posts" | "editor" | "media";
 
@@ -13,6 +15,9 @@ const currentTab = ref<Tab>("posts"); // `posts` or `editor` or `media`
 const loading = ref(false);
 const editingPost = ref<PostItem | null>(null);
 const postToDelete = ref<PostItem | null>(null);
+const postOrphansToPrompt = ref<string[]>([]);
+const alsoDeleteOrphans = ref(true);
+const isScanningOrphans = ref(false);
 const isDeleting = ref(false);
 const errorMessage = ref("");
 const deleteError = ref("");
@@ -59,14 +64,24 @@ function handleEditPost(post: PostItem) {
   currentTab.value = "editor";
 }
 
-function promptDeletePost(post: PostItem) {
+async function promptDeletePost(post: PostItem) {
   deleteError.value = "";
   postToDelete.value = post;
+  postOrphansToPrompt.value = [];
+  alsoDeleteOrphans.value = true;
+
+  const refs = extractMediaReferences(post.content || "");
+  if (refs.length > 0) {
+    isScanningOrphans.value = true;
+    postOrphansToPrompt.value = await findTrueOrphans(refs, post.id);
+    isScanningOrphans.value = false;
+  }
 }
 
 function cancelDeletePost() {
   if (isDeleting.value) return;
   postToDelete.value = null;
+  postOrphansToPrompt.value = [];
   deleteError.value = "";
 }
 
@@ -76,13 +91,20 @@ async function confirmDeletePost() {
   deleteError.value = "";
 
   try {
-    const res = await fetch(`/api/admin/posts/${postToDelete.value.id}`, {
+    const targetPost = postToDelete.value;
+    const res = await fetch(`/api/admin/posts/${targetPost.id}`, {
       method: "DELETE",
     });
     const data: any = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to delete post");
 
+    // If user opted to delete orphaned media
+    if (alsoDeleteOrphans.value && postOrphansToPrompt.value.length > 0) {
+      await pruneOrphanFiles(postOrphansToPrompt.value);
+    }
+
     postToDelete.value = null;
+    postOrphansToPrompt.value = [];
     await fetchPosts();
   } catch (err: any) {
     deleteError.value = err.message;
@@ -259,14 +281,51 @@ onMounted(() => {
           </div>
         </div>
         <div
+          v-if="postOrphansToPrompt.length > 0"
+          class="p-3 border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text) space-y-2"
+        >
+          <div class="flex items-center gap-1.5 font-bold text-xs">
+            <Icon icon="lucide:alert-triangle" class="w-4 h-4 text-amber-400" />
+            <span
+              >Unreferenced Media Detected ({{
+                postOrphansToPrompt.length
+              }})</span
+            >
+          </div>
+          <div class="text-[11px] text-(--text-secondary)">
+            This post contains media file(s) not used in any other article:
+          </div>
+          <div
+            class="max-h-24 overflow-y-auto space-y-1 bg-(--bg-primary) p-2 border border-(--border-subtle) font-mono text-[11px]"
+          >
+            <div
+              v-for="file in postOrphansToPrompt"
+              :key="file"
+              class="flex items-center gap-1 text-(--text-primary)"
+            >
+              <span>📎</span>
+              <span class="truncate">{{ file }}</span>
+            </div>
+          </div>
+          <label
+            class="flex items-center gap-2 text-[11px] text-(--text-primary) cursor-pointer pt-1"
+          >
+            <input
+              type="checkbox"
+              v-model="alsoDeleteOrphans"
+              class="accent-(--accent-green)"
+            />
+            <span>Also permanently delete these orphaned media files</span>
+          </label>
+        </div>
+
+        <div
           class="p-3 border border-(--status-error-border) bg-(--status-error-bg) text-(--status-error-text) space-y-1 leading-relaxed"
         >
           <div class="font-bold">> WARNING: This action cannot be undone.</div>
           <div class="text-[11px] text-(--text-secondary)">
             This will permanently remove the post record and its tag
-            associations from the database. Embedded media files will remain
-            preserved. You can then proceed to remove them from the Media
-            Library.
+            associations from the database.
           </div>
         </div>
         <div

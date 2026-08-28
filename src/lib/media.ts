@@ -55,3 +55,52 @@ export async function computeSha256(buffer: ArrayBuffer): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
+/**
+ * Scans media assets against other posts to determine which files will become true orphans.
+ */
+export async function findTrueOrphans(
+  filenames: string[],
+  currentPostId?: string | null,
+): Promise<string[]> {
+  if (!filenames || filenames.length === 0) return [];
+  try {
+    const res = await fetch("/api/admin/media/orphans");
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    const mediaList: Array<{
+      filename: string;
+      referenced_in?: Array<{ id: string }>;
+    }> = data.media || [];
+
+    return filenames.filter((filename) => {
+      const item = mediaList.find((m) => m.filename === filename);
+      if (!item) return false;
+      const otherRefs = (item.referenced_in || []).filter(
+        (p) => !currentPostId || p.id !== currentPostId,
+      );
+      return otherRefs.length === 0;
+    });
+  } catch (err) {
+    console.error("Failed to detect true orphans:", err);
+    return [];
+  }
+}
+
+/**
+ * Prunes a list of orphaned media assets.
+ */
+export async function pruneOrphanFiles(filenames: string[]): Promise<boolean> {
+  if (!filenames || filenames.length === 0) return false;
+  try {
+    const res = await fetch("/api/admin/media/orphans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filenames }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("Failed to prune orphan files:", err);
+    return false;
+  }
+}
