@@ -133,8 +133,8 @@ async function startTotpSetup() {
         type: "svg",
         margin: 2,
         color: {
-          dark: "#000000",
-          light: "#ffffff",
+          dark: "#8bedc8",
+          light: "#00000000",
         },
       });
     } else {
@@ -450,10 +450,10 @@ async function handleDisableTotp() {
               </p>
               <div
                 v-if="totpQrSvg"
-                class="flex justify-center p-3 bg-white border border-(--border-main) rounded max-w-xs mx-auto"
+                class="flex justify-center p-4 bg-(--bg-primary) border border-(--border-main) rounded max-w-xs mx-auto shadow-inner"
               >
                 <div
-                  class="w-44 h-44 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+                  class="w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg>path]:stroke-(--accent-green-bright)"
                   v-html="totpQrSvg"
                 ></div>
               </div>
