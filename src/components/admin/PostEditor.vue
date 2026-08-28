@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { Icon } from "@iconify/vue";
 import type { PostItem } from "./PostList.vue";
 
 const props = defineProps<{
@@ -351,9 +352,10 @@ async function executeSave(publishStatus: "draft" | "published") {
         <button
           type="button"
           @click="emit('back')"
-          class="px-3 py-1 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors"
+          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors inline-flex items-center gap-1.5"
         >
-          &larr; Back to Posts
+          <Icon icon="lucide:arrow-left" class="w-3.5 h-3.5" />
+          <span>Back to Posts</span>
         </button>
         <span
           class="text-xs uppercase tracking-widest text-(--accent-green) font-bold"
@@ -377,23 +379,27 @@ async function executeSave(publishStatus: "draft" | "published") {
           type="button"
           @click="savePost('draft')"
           :disabled="isSaving"
-          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--bg-surface-elevated) transition-colors"
+          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--bg-surface-elevated) transition-colors inline-flex items-center gap-1.5"
         >
-          {{ isSaving && status === "draft" ? "Saving..." : "Save Draft" }}
+          <Icon icon="lucide:save" class="w-3.5 h-3.5" />
+          <span>{{
+            isSaving && status === "draft" ? "Saving..." : "Save Draft"
+          }}</span>
         </button>
         <button
           type="button"
           @click="savePost('published')"
           :disabled="isSaving"
-          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors"
+          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5"
         >
-          {{
+          <Icon icon="lucide:send" class="w-3.5 h-3.5" />
+          <span>{{
             isSaving && status === "published"
               ? "Publishing..."
               : isEditing && status === "published"
                 ? "Update Post"
                 : "Publish Post"
-          }}
+          }}</span>
         </button>
       </div>
     </div>
@@ -446,7 +452,7 @@ async function executeSave(publishStatus: "draft" | "published") {
             <span
               class="px-2 py-1.5 text-xs bg-(--bg-surface-elevated) border border-r-0 border-(--border-main) text-(--text-muted) select-none"
             >
-              /blogs/
+              /posts/
             </span>
             <input
               v-model="slug"
@@ -519,52 +525,63 @@ async function executeSave(publishStatus: "draft" | "published") {
         <button
           type="button"
           @click="insertTextAtCursor('**', '**', 'bold text')"
-          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) font-bold text-(--text-primary)"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Bold"
         >
-          B
+          <Icon icon="lucide:bold" class="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           @click="insertTextAtCursor('*', '*', 'italic text')"
-          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) italic text-(--text-primary)"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Italic"
         >
-          I
+          <Icon icon="lucide:italic" class="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           @click="insertTextAtCursor('## ', '', 'Heading')"
-          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary)"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Heading 2"
         >
-          H2
+          <Icon icon="lucide:heading-2" class="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           @click="
             insertTextAtCursor('```typescript\n', '\n```', '// code here')
           "
-          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary)"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Code Block"
         >
-          &lt;/&gt;
+          <Icon icon="lucide:code" class="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           @click="insertTextAtCursor('[[', ']]', 'post-slug')"
-          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--accent-green)"
+          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--accent-green) inline-flex items-center gap-1"
           title="Obsidian Wikilink [[slug]]"
         >
-          [[Link]]
+          <Icon icon="lucide:link-2" class="w-3.5 h-3.5" />
+          <span>[[Link]]</span>
         </button>
         <button
           type="button"
           @click="insertTextAtCursor('> [!NOTE] Title\n> ', '', 'Content')"
-          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-cyan-400"
+          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-cyan-400 inline-flex items-center gap-1"
           title="Obsidian Callout"
         >
-          [!Note]
+          <Icon icon="lucide:message-square" class="w-3.5 h-3.5" />
+          <span>[!Note]</span>
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('$\n', '\n$', 'E=mc^2')"
+          class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-purple-400 inline-flex items-center gap-1"
+          title="Math Formula"
+        >
+          <Icon icon="lucide:sigma" class="w-3.5 h-3.5" />
+          <span>$Math$</span>
         </button>
 
         <span class="w-px h-4 bg-(--border-main) mx-1"></span>
@@ -581,10 +598,11 @@ async function executeSave(publishStatus: "draft" | "published") {
           type="button"
           @click="triggerFilePicker"
           :disabled="isUploading"
-          class="px-2.5 py-1 text-xs border border-(--accent-green-dim) text-(--accent-green-bright) hover:bg-(--accent-green-glow)"
+          class="px-2.5 py-1 text-xs border border-(--accent-green-dim) text-(--accent-green-bright) hover:bg-(--accent-green-glow) inline-flex items-center gap-1.5"
           title="Upload image or video"
         >
-          {{ isUploading ? "Uploading..." : "📁 Upload Media" }}
+          <Icon icon="lucide:upload-cloud" class="w-3.5 h-3.5" />
+          <span>{{ isUploading ? "Uploading..." : "Upload Media" }}</span>
         </button>
 
         <label
@@ -684,7 +702,7 @@ async function executeSave(publishStatus: "draft" | "published") {
           >
         </div>
         <div
-          class="p-6 overflow-y-auto max-h-175 prose prose-invert prose-emerald max-w-none text-sm leading-relaxed"
+          class="p-6 overflow-y-auto max-h-175 markdown-body text-sm leading-relaxed"
           v-html="previewHtml"
         ></div>
       </div>
@@ -701,7 +719,7 @@ async function executeSave(publishStatus: "draft" | "published") {
         <div
           class="flex items-center gap-2 text-amber-400 text-sm font-bold uppercase tracking-wider"
         >
-          <span>⚠️</span>
+          <Icon icon="lucide:alert-triangle" class="w-4 h-4 text-amber-400" />
           <span>[ORPHANED_MEDIA_DETECTED]</span>
         </div>
 

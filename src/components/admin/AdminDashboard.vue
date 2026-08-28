@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { Icon } from "@iconify/vue";
 import PostList, { type PostItem } from "./PostList.vue";
 import PostEditor from "./PostEditor.vue";
 import MediaLibrary from "./MediaLibrary.vue";
@@ -39,7 +40,7 @@ function handleEditPost(post: PostItem) {
 
 async function handleDeletePost(post: PostItem) {
   const confirmed = window.confirm(
-    `Are you sure you want to delete post "${post.title}" (/blogs/${post.slug})?`,
+    `Are you sure you want to delete post "${post.title}" (/posts/${post.slug})?`,
   );
   if (!confirmed) return;
 
@@ -72,6 +73,7 @@ onMounted(() => {
       class="flex flex-wrap items-center justify-between gap-4 border-b border-(--border-main) pb-4"
     >
       <div class="flex items-center gap-3">
+        <Icon icon="lucide:terminal" class="w-5 h-5 text-(--accent-green)" />
         <h1
           class="text-lg font-bold text-(--accent-green) uppercase tracking-wider"
         >
@@ -85,37 +87,27 @@ onMounted(() => {
           type="button"
           @click="currentTab = 'posts'"
           :class="[
-            'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border',
+            'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border inline-flex items-center gap-1.5',
             currentTab === 'posts'
               ? 'border-(--border-highlight) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
               : 'border-(--border-subtle) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-main)',
           ]"
         >
-          Posts ({{ posts.length }})
-        </button>
-        <button
-          type="button"
-          @click="handleNewPost"
-          :class="[
-            'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border',
-            currentTab === 'editor' && !editingPost
-              ? 'border-(--border-highlight) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
-              : 'border-(--border-subtle) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-main)',
-          ]"
-        >
-          + New Post
+          <Icon icon="lucide:file-text" class="w-3.5 h-3.5" />
+          <span>Posts ({{ posts.length }})</span>
         </button>
         <button
           type="button"
           @click="currentTab = 'media'"
           :class="[
-            'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border',
+            'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border inline-flex items-center gap-1.5',
             currentTab === 'media'
               ? 'border-(--border-highlight) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
               : 'border-(--border-subtle) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-main)',
           ]"
         >
-          Media Library
+          <Icon icon="lucide:image" class="w-3.5 h-3.5" />
+          <span>Media Library</span>
         </button>
       </div>
     </div>

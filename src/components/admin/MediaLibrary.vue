@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { Icon } from "@iconify/vue";
 
 export interface MediaUsageItem {
   id: string;
@@ -216,11 +217,14 @@ onMounted(() => {
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4"
     >
       <div class="flex flex-wrap items-center gap-4">
-        <span
-          class="text-xs uppercase tracking-widest text-(--accent-green) font-bold"
-        >
-          [ASSETS // {{ totalMedia }} TOTAL]
-        </span>
+        <div class="flex items-center gap-2">
+          <Icon icon="lucide:image" class="w-4 h-4 text-(--accent-green)" />
+          <span
+            class="text-xs uppercase tracking-widest text-(--accent-green) font-bold"
+          >
+            ASSETS // {{ totalMedia }} TOTAL
+          </span>
+        </div>
         <span class="text-xs text-(--text-secondary)">
           In Use:
           <strong class="text-(--text-primary)">{{ inUseCount }}</strong>
@@ -238,18 +242,25 @@ onMounted(() => {
           type="button"
           @click="fetchMedia"
           :disabled="loading"
-          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors"
+          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors inline-flex items-center gap-1.5"
         >
-          {{ loading ? "Scanning..." : "[Rescan]" }}
+          <Icon
+            icon="lucide:rotate-cw"
+            :class="['w-3.5 h-3.5', loading ? 'animate-spin' : '']"
+          />
+          <span>{{ loading ? "Scanning..." : "Rescan" }}</span>
         </button>
         <button
           v-if="orphanCount > 0"
           type="button"
           @click="pruneAllOrphans"
           :disabled="isPruning"
-          class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold border border-amber-600 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 transition-colors"
+          class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold border border-amber-600 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 transition-colors inline-flex items-center gap-1.5"
         >
-          {{ isPruning ? "Pruning..." : `Prune ${orphanCount} Orphans` }}
+          <Icon icon="lucide:sparkles" class="w-3.5 h-3.5" />
+          <span>{{
+            isPruning ? "Pruning..." : `Prune ${orphanCount} Orphans`
+          }}</span>
         </button>
       </div>
     </div>
@@ -283,6 +294,10 @@ onMounted(() => {
         @change="handleFileInput"
       />
       <div class="space-y-3">
+        <Icon
+          icon="lucide:upload-cloud"
+          class="w-8 h-8 text-(--accent-green) mx-auto"
+        />
         <div class="text-sm text-(--text-primary) font-bold">
           Drag and drop images or videos here to upload directly to R2
         </div>
@@ -291,9 +306,12 @@ onMounted(() => {
             type="button"
             @click="fileInputRef?.click()"
             :disabled="isUploading"
-            class="px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright)"
+            class="px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) inline-flex items-center gap-1.5"
           >
-            {{ isUploading ? "Uploading Assets..." : "Browse Files" }}
+            <Icon icon="lucide:folder-open" class="w-3.5 h-3.5" />
+            <span>{{
+              isUploading ? "Uploading Assets..." : "Browse Files"
+            }}</span>
           </button>
           <label
             class="flex items-center gap-2 text-xs text-(--text-secondary) cursor-pointer"
@@ -311,12 +329,16 @@ onMounted(() => {
 
     <!-- Filter & Search Controls -->
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-      <div class="flex-1">
+      <div class="flex-1 relative">
+        <Icon
+          icon="lucide:search"
+          class="w-4 h-4 text-(--text-muted) absolute left-3 top-1/2 -translate-y-1/2"
+        />
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Filter by filename, original name, post title..."
-          class="w-full px-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight)"
+          class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight)"
         />
       </div>
       <div
@@ -398,8 +420,14 @@ onMounted(() => {
             class="w-full h-full object-contain"
             preload="metadata"
           ></video>
-          <div v-else class="text-center p-4 text-(--text-muted)">
-            <span class="text-2xl block mb-1">📄</span>
+          <div
+            v-else
+            class="text-center p-4 text-(--text-muted) flex flex-col items-center justify-center"
+          >
+            <Icon
+              icon="lucide:file"
+              class="w-10 h-10 mb-1 text-(--text-muted)"
+            />
             <span class="text-xs uppercase">{{ item.mime_type }}</span>
           </div>
 
@@ -459,27 +487,35 @@ onMounted(() => {
             @click="
               copyToClipboard(`![[${item.filename}]]`, `embed-${item.id}`)
             "
-            class="flex-1 py-1 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors"
+            class="flex-1 py-1 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors inline-flex items-center justify-center gap-1.5"
           >
-            {{
-              copiedFilename === `embed-${item.id}` ? "✓ Copied" : "Copy Embed"
-            }}
+            <Icon
+              :icon="
+                copiedFilename === `embed-${item.id}`
+                  ? 'lucide:check'
+                  : 'lucide:copy'
+              "
+              class="w-3.5 h-3.5"
+            />
+            <span>{{
+              copiedFilename === `embed-${item.id}` ? "Copied" : "Copy Embed"
+            }}</span>
           </button>
           <a
             :href="`/media/${item.filename}`"
             target="_blank"
-            class="px-2 py-1 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary)"
+            class="p-1.5 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) inline-flex items-center"
             title="Open raw file"
           >
-            ↗
+            <Icon icon="lucide:external-link" class="w-3.5 h-3.5" />
           </a>
           <button
             type="button"
             @click="deleteSingleAsset(item)"
-            class="px-2 py-1 border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/40"
+            class="p-1.5 border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/40 inline-flex items-center"
             title="Delete Asset"
           >
-            Del
+            <Icon icon="lucide:trash-2" class="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

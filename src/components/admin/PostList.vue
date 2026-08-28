@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { Icon } from "@iconify/vue";
 
 export interface PostItem {
   id: string;
@@ -61,40 +62,50 @@ function formatDate(timestamp?: number | null) {
     <div
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4"
     >
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <Icon icon="lucide:layers" class="w-4 h-4 text-(--accent-green)" />
         <span
           class="text-xs uppercase tracking-widest text-(--accent-green) font-bold"
         >
-          [POSTS // {{ posts.length }} TOTAL]
+          POSTS // {{ posts.length }} TOTAL
         </span>
       </div>
       <div class="flex items-center gap-3 w-full sm:w-auto">
         <button
           type="button"
           @click="emit('refresh')"
-          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors"
+          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors inline-flex items-center gap-1.5"
           :disabled="loading"
         >
-          {{ loading ? "Reloading..." : "[Reload]" }}
+          <Icon
+            icon="lucide:rotate-cw"
+            :class="['w-3.5 h-3.5', loading ? 'animate-spin' : '']"
+          />
+          <span>{{ loading ? "Reloading..." : "Reload" }}</span>
         </button>
         <button
           type="button"
           @click="emit('new-post')"
-          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors"
+          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5"
         >
-          + Create Post
+          <Icon icon="lucide:plus" class="w-4 h-4" />
+          <span>Create Post</span>
         </button>
       </div>
     </div>
 
     <!-- Filters & Search -->
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-      <div class="flex-1">
+      <div class="flex-1 relative">
+        <Icon
+          icon="lucide:search"
+          class="w-4 h-4 text-(--text-muted) absolute left-3 top-1/2 -translate-y-1/2"
+        />
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Search by title, slug, tag..."
-          class="w-full px-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight)"
+          class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight)"
         />
       </div>
       <div
@@ -192,7 +203,7 @@ function formatDate(timestamp?: number | null) {
                 {{ post.title }}
               </div>
               <div class="text-xs text-(--text-muted) mt-0.5">
-                /blogs/{{ post.slug }}
+                /posts/{{ post.slug }}
               </div>
             </td>
             <td class="p-3">
@@ -218,26 +229,29 @@ function formatDate(timestamp?: number | null) {
             <td class="p-3 text-right whitespace-nowrap space-x-2">
               <a
                 v-if="post.status === 'published'"
-                :href="`/blogs/${post.slug}`"
+                :href="`/posts/${post.slug}`"
                 target="_blank"
-                class="px-2 py-1 text-xs border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main)"
+                class="px-2 py-1 text-xs border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main) inline-flex items-center gap-1"
                 title="View Live Page"
               >
-                [View]
+                <Icon icon="lucide:external-link" class="w-3 h-3" />
+                <span>View</span>
               </a>
               <button
                 type="button"
                 @click="emit('edit-post', post)"
-                class="px-2 py-1 text-xs border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow)"
+                class="px-2 py-1 text-xs border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) inline-flex items-center gap-1"
               >
-                [Edit]
+                <Icon icon="lucide:pencil" class="w-3 h-3" />
+                <span>Edit</span>
               </button>
               <button
                 type="button"
                 @click="emit('delete-post', post)"
-                class="px-2 py-1 text-xs border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/30"
+                class="px-2 py-1 text-xs border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/30 inline-flex items-center gap-1"
               >
-                [Del]
+                <Icon icon="lucide:trash-2" class="w-3 h-3" />
+                <span>Delete</span>
               </button>
             </td>
           </tr>
