@@ -133,14 +133,15 @@ const readTime = calculateReadingTime(post.content);
     />
     <footer class="pt-8 border-t border-(--border-main) flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-(--text-muted)">
       <div>
-        <!-- TODO: enhance copy link with feedback and other options -->
-        <a
-          onclick="navigator.clipboard.writeText(window.location.href)"
-          class="px-4 py-2 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1.5"
+        <button
+          type="button"
+          id="copy-link-btn"
+          aria-label="Copy link to article"
+          class="px-4 py-2 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1.5 cursor-pointer"
         >
           <Icon name="lucide:copy" class="w-3.5 h-3.5" />
-          <span>Copy Link</span>
-        </a>
+          <span id="copy-link-text">Copy Link</span>
+        </button>
       </div>
       <div>
         <a
@@ -154,3 +155,23 @@ const readTime = calculateReadingTime(post.content);
     </footer>
   </div>
 </Layout>
+
+<script>
+  const copyBtn = document.getElementById('copy-link-btn');
+  const copyText = document.getElementById('copy-link-text');
+
+  if (copyBtn && copyText) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        const originalText = copyText.textContent;
+        copyText.textContent = 'Copied!';
+        setTimeout(() => {
+          copyText.textContent = originalText;
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy link', err);
+      }
+    });
+  }
+</script>
