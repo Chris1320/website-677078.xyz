@@ -45,33 +45,29 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 let slugManuallyEdited = isEditing.value;
+let previewTimeout: any = null;
 
-watch(
-  () => props.initialPost,
-  (newPost) => {
-    isEditing.value = !!newPost?.id;
-    postId.value = newPost?.id || "";
-    title.value = newPost?.title || "";
-    slug.value = newPost?.slug || "";
-    description.value = newPost?.description || "";
-    content.value = newPost?.content || "";
-    status.value = newPost?.status || "draft";
-    publishedAt.value = newPost?.published_at || null;
-    tags.value = newPost?.tags?.map((t) => t.name) || [];
-    tagInput.value = "";
-    slugManuallyEdited = !!newPost?.id;
-    errorMessage.value = "";
-    successMessage.value = "";
-    fetchPreview();
-  },
-  { immediate: true },
-);
-
-watch(title, (newTitle) => {
-  if (!slugManuallyEdited) {
-    slug.value = slugify(newTitle);
-  }
-});
+function fetchPreview() {
+  if (previewTimeout) clearTimeout(previewTimeout);
+  isRenderingPreview.value = true;
+  previewTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch("/api/admin/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markdown: content.value }),
+      });
+      const data: any = await res.json();
+      previewHtml.value =
+        data.html || '<p class="text-[var(--text-muted)]">> Empty document</p>';
+    } catch {
+      previewHtml.value =
+        '<p class="text-(--status-error-text)">> Failed to render preview</p>';
+    } finally {
+      isRenderingPreview.value = false;
+    }
+  }, 250);
+}
 
 function onSlugInput() {
   slugManuallyEdited = true;
@@ -102,28 +98,32 @@ function handleTagKeyDown(e: KeyboardEvent) {
   }
 }
 
-let previewTimeout: any = null;
-function fetchPreview() {
-  if (previewTimeout) clearTimeout(previewTimeout);
-  isRenderingPreview.value = true;
-  previewTimeout = setTimeout(async () => {
-    try {
-      const res = await fetch("/api/admin/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: content.value }),
-      });
-      const data: any = await res.json();
-      previewHtml.value =
-        data.html || '<p class="text-[var(--text-muted)]">> Empty document</p>';
-    } catch {
-      previewHtml.value =
-        '<p class="text-(--status-error-text)">> Failed to render preview</p>';
-    } finally {
-      isRenderingPreview.value = false;
-    }
-  }, 250);
-}
+watch(
+  () => props.initialPost,
+  (newPost) => {
+    isEditing.value = !!newPost?.id;
+    postId.value = newPost?.id || "";
+    title.value = newPost?.title || "";
+    slug.value = newPost?.slug || "";
+    description.value = newPost?.description || "";
+    content.value = newPost?.content || "";
+    status.value = newPost?.status || "draft";
+    publishedAt.value = newPost?.published_at || null;
+    tags.value = newPost?.tags?.map((t) => t.name) || [];
+    tagInput.value = "";
+    slugManuallyEdited = !!newPost?.id;
+    errorMessage.value = "";
+    successMessage.value = "";
+    fetchPreview();
+  },
+  { immediate: true },
+);
+
+watch(title, (newTitle) => {
+  if (!slugManuallyEdited) {
+    slug.value = slugify(newTitle);
+  }
+});
 
 watch(content, () => {
   fetchPreview();
