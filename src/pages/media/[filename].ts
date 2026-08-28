@@ -13,7 +13,10 @@ export const GET: APIRoute = async (context) => {
 
   try {
     const bucket = getMediaBucket();
-    const object = await bucket.get(filename);
+    const object = await bucket.get(filename, {
+      onlyIf: context.request.headers,
+      range: context.request.headers,
+    });
 
     if (!object) {
       return new Response("Asset not found", { status: 404 });
@@ -24,6 +27,15 @@ export const GET: APIRoute = async (context) => {
     headers.set("etag", object.httpEtag);
     headers.set("Cache-Control", "public, max-age=31536000, immutable");
     headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Accept-Ranges", "bytes");
+
+    // Check if object is a metadata-only R2Object (precondition matched, e.g. If-None-Match)
+    if (!("body" in object) || !(object as any).body) {
+      return new Response(null, {
+        status: 304,
+        headers,
+      });
+    }
 
     if (!headers.get("Content-Type")) {
       headers.set("Content-Type", getMimeTypeForExtension(filename));
@@ -48,8 +60,24 @@ export const GET: APIRoute = async (context) => {
       headers.set("Content-Disposition", `attachment; filename="${filename}"`);
     }
 
+    const isRange = Boolean(object.range);
+    if (isRange && object.range) {
+      const range = object.range as any;
+      if (typeof range.offset === "number" && typeof range.length === "number") {
+        headers.set(
+          "Content-Range",
+          `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}`,
+        );
+      } else if (typeof range.suffix === "number") {
+        headers.set(
+          "Content-Range",
+          `bytes ${object.size - range.suffix}-${object.size - 1}/${object.size}`,
+        );
+      }
+    }
+
     return new Response(object.body, {
-      status: 200,
+      status: isRange ? 206 : 200,
       headers,
     });
   } catch (error: any) {
