@@ -461,12 +461,18 @@ async function confirmPruneAllOrphans() {
   successMessage.value = "";
 
   try {
-    const res = await fetch("/api/admin/media/orphans", { method: "DELETE" });
+    const res = await fetch("/api/admin/media/orphans", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allOrphans: true }),
+    });
     const data: any = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to prune orphans");
 
+    const deletedCount = data.count ?? data.deleted?.length ?? 0;
     showPruneModal.value = false;
-    successMessage.value = `Successfully pruned ${data.deletedCount} orphaned asset(s) (${formatBytes(totalOrphanBytes.value)}) from the database.`;
+    successMessage.value = `Successfully pruned ${deletedCount} orphaned asset(s) (${formatBytes(totalOrphanBytes.value)}) from the database.`;
+    emit("posts-updated");
     await fetchMedia();
   } catch (err: any) {
     errorMessage.value = err.message;
