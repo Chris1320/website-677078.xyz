@@ -917,9 +917,8 @@ async function executeSave(
             type="button"
             @click="confirmPublishedDateChoice(true)"
             :disabled="isSaving"
-            class="px-3 py-1.5 bg-(--accent-green) hover:bg-(--accent-green-bright) text-(--text-inverse) font-bold uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-1.5"
+            class="px-3 py-1.5 bg-(--accent-green) hover:bg-(--accent-green-bright) text-(--text-inverse) font-bold tracking-wider transition-colors inline-flex items-center justify-center gap-1.5"
           >
-            <Icon icon="lucide:clock" class="w-3.5 h-3.5" />
             <span>Update Date & Save</span>
           </button>
         </div>
