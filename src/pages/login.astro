@@ -1,0 +1,209 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AsciiTitle from '../components/AsciiTitle.astro';
+import { Icon } from 'astro-icon/components';
+
+export const prerender = false;
+
+const redirectTarget = Astro.url.searchParams.get('redirect') || '/admin';
+---
+
+<Layout title="CFN | 67 70 78" description="ChrisFromNowhere's personal blog">
+  <div class="content space-y-8">
+    <AsciiTitle />
+
+    <div class="max-w-md mx-auto w-full border border-(--border-main) bg-(--bg-surface) p-6 space-y-6">
+      <div class="flex items-center justify-between border-b border-(--border-subtle) pb-3">
+        <div class="flex items-center gap-2 text-sm text-(--accent-green) font-bold">
+          <Icon name="lucide:shield-check" class="w-4 h-4" />
+          <span>LOGIN</span>
+        </div>
+      </div>
+
+      <div
+        id="alert-box"
+        class="hidden p-3 text-xs items-start gap-2 border font-mono"
+      >
+        <div id="alert-icon" class="shrink-0 mt-0.5">
+          <Icon name="lucide:alert-triangle" class="w-4 h-4 text-(--status-error-text)" id="error-icon" />
+          <Icon name="lucide:alert-circle" class="w-4 h-4 text-(--status-warning-text) hidden" id="warning-icon" />
+        </div>
+        <span id="alert-text">Authentication message</span>
+      </div>
+
+      <form id="login-form" class="space-y-4">
+        <div class="space-y-1">
+          <label for="username" class="block text-xs uppercase tracking-wider text-(--text-secondary)">
+            Username
+          </label>
+          <div class="relative">
+            <input
+              type="text"
+              id="username"
+              name="username"
+              required
+              autocomplete="username"
+              autofocus
+              class="w-full bg-(--bg-primary) border border-(--border-main) px-3 py-2 text-sm text-(--text-primary) focus:border-(--border-highlight) focus:outline-none font-mono"
+              placeholder="admin"
+            />
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label for="password" class="block text-xs uppercase tracking-wider text-(--text-secondary)">
+            Password
+          </label>
+          <div class="relative">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="current-password"
+              class="w-full bg-(--bg-primary) border border-(--border-main) px-3 py-2 text-sm text-(--text-primary) focus:border-(--border-highlight) focus:outline-none font-mono"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <!-- TOTP 2FA Verification Field (Dynamic) -->
+        <div id="totp-group" class="space-y-1 hidden">
+          <div class="flex items-center justify-between">
+            <label for="totp-code" class="block text-xs uppercase tracking-wider text-(--accent-green) font-bold">
+              2FA Authentication Code
+            </label>
+            <span class="text-[10px] text-(--text-muted)">6-digit token</span>
+          </div>
+          <div class="relative">
+            <input
+              type="text"
+              id="totp-code"
+              name="totpCode"
+              maxlength="6"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              class="w-full bg-(--bg-primary) border border-(--border-highlight) px-3 py-2 text-(--accent-green-bright) tracking-widest text-center focus:outline-none font-mono text-lg font-bold"
+              placeholder="000000"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full mt-2 bg-(--accent-green) hover:bg-(--accent-green-bright) text-(--text-inverse) font-bold py-2.5 px-4 text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Icon name="lucide:key" class="w-4 h-4" />
+          <span id="submit-btn-text">Authenticate</span>
+        </button>
+      </form>
+
+      <div class="pt-4 border-t border-(--border-subtle) text-center text-xs text-(--text-muted)">
+        <a href="/" class="hover:text-(--text-primary) transition-colors inline-flex items-center gap-1">
+          <Icon name="lucide:arrow-left" class="w-3 h-3" />
+          Return to home
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script is:inline define:vars={{ redirectTarget }}>
+  const form = document.getElementById('login-form');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const totpGroup = document.getElementById('totp-group');
+  const totpCodeInput = document.getElementById('totp-code');
+  const submitBtn = document.getElementById('submit-btn');
+  const submitBtnText = document.getElementById('submit-btn-text');
+  const alertBox = document.getElementById('alert-box');
+  const alertText = document.getElementById('alert-text');
+  const errorIcon = document.getElementById('error-icon');
+  const warningIcon = document.getElementById('warning-icon');
+
+  let requireTotp = false;
+
+  function showError(msg) {
+    alertText.textContent = msg;
+    alertBox.className = 'p-3 text-xs flex items-start gap-2 border font-mono bg-(--status-error-bg) border-(--status-error-border) text-(--status-error-text)';
+    errorIcon.classList.remove('hidden');
+    warningIcon.classList.add('hidden');
+    alertBox.classList.remove('hidden');
+  }
+
+  function showWarning(msg) {
+    alertText.textContent = msg;
+    alertBox.className = 'p-3 text-xs flex items-start gap-2 border font-mono bg-(--status-warning-bg) border-(--status-warning-border) text-(--status-warning-text)';
+    errorIcon.classList.add('hidden');
+    warningIcon.classList.remove('hidden');
+    alertBox.classList.remove('hidden');
+  }
+
+  function hideFeedback() {
+    alertBox.classList.add('hidden');
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideFeedback();
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+    const totpCode = totpCodeInput ? totpCodeInput.value.trim() : '';
+
+    if (!username || !password) {
+      showError('Please enter both username and password.');
+      return;
+    }
+
+    if (requireTotp && (!totpCode || totpCode.length !== 6)) {
+      showError('Please enter the 6-digit TOTP code.');
+      totpCodeInput.focus();
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtnText.textContent = 'Verifying...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          totpCode: requireTotp ? totpCode : undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.requireTotp) {
+        requireTotp = true;
+        totpGroup.classList.remove('hidden');
+        submitBtnText.textContent = 'Verify Token';
+        submitBtn.disabled = false;
+        showWarning(data.warning || data.message || 'Two-factor authentication code is required.');
+        totpCodeInput.focus();
+        return;
+      }
+
+      if (!res.ok || !data.success) {
+        showError(data.error || 'Invalid credentials.');
+        submitBtn.disabled = false;
+        submitBtnText.textContent = requireTotp ? 'Verify Token' : 'Authenticate';
+        return;
+      }
+
+      submitBtnText.textContent = 'Access Granted';
+      window.location.href = redirectTarget;
+    } catch (err) {
+      showError('Connection error during authentication.');
+      submitBtn.disabled = false;
+      submitBtnText.textContent = requireTotp ? 'Verify Token' : 'Authenticate';
+    }
+  });
+</script>
