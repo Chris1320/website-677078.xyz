@@ -3,8 +3,12 @@ import { ref, watch, onMounted } from "vue";
 import { Icon } from "@iconify/vue";
 
 import type { PostItem } from "./PostList.vue";
-import { formatDate, slugify } from "../../lib/utils";
-import { findTrueOrphans, pruneOrphanFiles } from "../../lib/media";
+import { formatDate, formatBytes, slugify } from "../../lib/utils";
+import {
+  findTrueOrphans,
+  pruneOrphanFiles,
+  uploadFileWithProgress,
+} from "../../lib/media";
 import { extractMediaReferences } from "../../lib/markdown";
 
 const props = defineProps<{
@@ -133,25 +137,36 @@ function insertTextAtCursor(
   }, 0);
 }
 
+const uploadProgress = ref({
+  active: false,
+  filename: "",
+  loaded: 0,
+  total: 0,
+  percent: 0,
+});
+
 async function uploadFile(file: File) {
   isUploading.value = true;
   uploadStatus.value = `Uploading ${file.name}...`;
   errorMessage.value = "";
+  uploadProgress.value = {
+    active: true,
+    filename: file.name,
+    loaded: 0,
+    total: file.size,
+    percent: 0,
+  };
 
   try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("preserveName", preserveFilename.value ? "true" : "false");
-
-    const res = await fetch("/api/media/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data: any = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || "Upload failed");
-    }
+    const data = await uploadFileWithProgress(
+      file,
+      preserveFilename.value,
+      (p) => {
+        uploadProgress.value.loaded = p.loaded;
+        uploadProgress.value.total = p.total;
+        uploadProgress.value.percent = p.percent;
+      },
+    );
 
     const embedCode = `\n![[${data.filename}]]\n`;
     insertTextAtCursor(embedCode);
@@ -162,7 +177,10 @@ async function uploadFile(file: File) {
   } catch (err: any) {
     errorMessage.value = `Upload failed: ${err.message}`;
   } finally {
-    isUploading.value = false;
+    setTimeout(() => {
+      uploadProgress.value.active = false;
+      isUploading.value = false;
+    }, 500);
   }
 }
 
@@ -690,6 +708,33 @@ async function executeSave(
         >
           Preview
         </button>
+      </div>
+    </div>
+
+    <!-- Upload Progress Bar -->
+    <div
+      v-if="uploadProgress.active"
+      class="p-3 border border-(--border-highlight) bg-(--bg-surface-elevated) font-mono text-xs space-y-2 shadow-sm"
+    >
+      <div class="flex items-center justify-between">
+        <div
+          class="flex items-center gap-2 text-(--accent-green-bright) font-bold truncate"
+        >
+          <Icon icon="lucide:loader" class="w-3.5 h-3.5 animate-spin" />
+          <span class="truncate">Uploading: {{ uploadProgress.filename }}</span>
+        </div>
+        <span class="text-(--text-secondary) text-[11px] shrink-0 pl-2">
+          {{ formatBytes(uploadProgress.loaded) }} /
+          {{ formatBytes(uploadProgress.total) }} ({{ uploadProgress.percent }}%)
+        </span>
+      </div>
+      <div
+        class="h-1.5 bg-(--bg-primary) border border-(--border-subtle) overflow-hidden"
+      >
+        <div
+          class="h-full bg-(--accent-green) transition-all duration-150 ease-out"
+          :style="{ width: `${uploadProgress.percent}%` }"
+        ></div>
       </div>
     </div>
 

@@ -272,7 +272,7 @@ onMounted(async () => {
     </div>
 
     <PostList
-      v-if="currentTab === 'posts'"
+      v-show="currentTab === 'posts'"
       :posts="posts"
       :loading="loading"
       @new-post="handleNewPost"
@@ -281,13 +281,14 @@ onMounted(async () => {
       @refresh="fetchPosts"
     />
     <PostEditor
-      v-else-if="currentTab === 'editor'"
+      v-if="currentTab === 'editor' || editingPost !== null"
+      v-show="currentTab === 'editor'"
       :initial-post="editingPost"
       @back="handleBackToPosts"
       @saved="handlePostSaved"
     />
 
-    <MediaLibrary v-else-if="currentTab === 'media'" />
+    <MediaLibrary v-show="currentTab === 'media'" />
 
     <UserSettingsModal
       :show="showUserSettings"

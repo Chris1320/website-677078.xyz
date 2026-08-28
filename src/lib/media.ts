@@ -104,3 +104,53 @@ export async function pruneOrphanFiles(filenames: string[]): Promise<boolean> {
     return false;
   }
 }
+
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percent: number;
+}
+
+/**
+ * Uploads a single media file to /api/media/upload with real-time XMLHttpRequest progress tracking.
+ */
+export function uploadFileWithProgress(
+  file: File,
+  preserveName: boolean = false,
+  onProgress?: (progress: UploadProgress) => void,
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/media/upload");
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        const percent = Math.round((e.loaded / Math.max(1, e.total)) * 100);
+        onProgress({ loaded: e.loaded, total: e.total, percent });
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(data.error || `HTTP ${xhr.status}`));
+        }
+      } catch {
+        reject(new Error("Invalid server response"));
+      }
+    };
+
+    xhr.onerror = () =>
+      reject(new Error("Network connection error during upload"));
+    xhr.onabort = () => reject(new Error("Upload cancelled"));
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("preserveName", preserveName ? "true" : "false");
+    xhr.send(formData);
+  });
+}
+
