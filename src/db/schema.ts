@@ -46,6 +46,7 @@ export const media = sqliteTable("media", {
   original_name: text("original_name").notNull(),
   mime_type: text("mime_type").notNull(),
   size_bytes: integer("size_bytes").notNull(),
+  hash: text("hash"),
   created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
