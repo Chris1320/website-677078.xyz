@@ -2,6 +2,9 @@ import { describe, it, expect } from "bun:test";
 import { isRouteProtected, getAuthenticatedUser } from "../src/lib/auth";
 import { UserManager } from "../src/lib/user-manager";
 
+process.env.SECURITY_SIGNING_SECRET =
+  "super-secure-jwt-signing-secret-with-more-than-32-chars-for-testing";
+
 describe("Security & Route Authorization", () => {
   it("protected admin, media, and security settings routes", () => {
     expect(isRouteProtected("/admin")).toBe(true);

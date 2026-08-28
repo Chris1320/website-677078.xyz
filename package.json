@@ -22,8 +22,6 @@
     "@astrojs/vue": "^7.0.2",
     "@fontsource/maple-mono": "^5.3.0",
     "@iconify-json/lucide": "^1.2.126",
-    "@iconify-json/simple-icons": "^1.2.93",
-    "@iconify-json/tabler": "^1.2.38",
     "@iconify/vue": "^5.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.2.7",

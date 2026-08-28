@@ -19,16 +19,11 @@ import css from "shiki/langs/css.mjs";
 import json from "shiki/langs/json.mjs";
 import markdown from "shiki/langs/markdown.mjs";
 import bash from "shiki/langs/bash.mjs";
-import shellscript from "shiki/langs/shellscript.mjs";
 import sql from "shiki/langs/sql.mjs";
 import python from "shiki/langs/python.mjs";
 import go from "shiki/langs/go.mjs";
 import rust from "shiki/langs/rust.mjs";
 import yaml from "shiki/langs/yaml.mjs";
-import vue from "shiki/langs/vue.mjs";
-import astro from "shiki/langs/astro.mjs";
-import { getIconData, iconToSVG } from "@iconify/utils";
-import lucideIcons from "@iconify-json/lucide/icons.json";
 import type { Root as MdastRoot, BlockContent, Blockquote } from "mdast";
 import { slugify } from "./utils";
 import type { Root as HastRoot, Element as HastElement } from "hast";
@@ -47,14 +42,11 @@ async function getHighlighterInstance() {
         json,
         markdown,
         bash,
-        shellscript,
         sql,
         python,
         go,
         rust,
         yaml,
-        vue,
-        astro,
       ],
       engine: createJavaScriptRegexEngine(),
     });
@@ -415,20 +407,11 @@ export function renderSVG(
     className?: string;
   },
 ): string {
-  const iconData = getIconData(lucideIcons as any, iconName);
-  if (!iconData) return "";
-
-  const renderData = iconToSVG(iconData, {
-    width: options?.width || "16",
-    height: options?.height || "16",
-  });
-
+  const width = options?.width || "16";
+  const height = options?.height || "16";
   const classAttr = options?.className ? ` class="${options.className}"` : "";
-  const attributes = Object.entries(renderData.attributes)
-    .map(([key, val]) => `${key}="${val}"`)
-    .join(" ");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg"${classAttr} ${attributes}>${renderData.body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg"${classAttr} width="${width}" height="${height}" viewBox="0 0 24 24" aria-hidden="true"><use href="/icons/callouts.svg#${iconName}"></use></svg>`;
 }
 
 function getCalloutIcon(type: string): string {

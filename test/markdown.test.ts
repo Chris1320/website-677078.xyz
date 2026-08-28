@@ -61,10 +61,12 @@ describe("Markdown Engine", () => {
     expect(html).toContain("Production Alert");
     expect(html).toContain("Do not execute raw SQL");
     expect(html).toContain('class="callout-icon"');
-    expect(html).toContain("<svg");
+    expect(html).toContain(
+      '<use href="/icons/callouts.svg#triangle-alert"></use>',
+    );
   });
 
-  it("highlight code blocks with Shiki", async () => {
+  it("highlights code blocks with Shiki", async () => {
     const md = '```typescript\nconst greeting: string = "hello world";\n```';
     const html = await renderMarkdown(md);
     expect(html).toContain("code-block-wrapper");
