@@ -1,23 +1,10 @@
 import { describe, it, expect } from "bun:test";
-
-function sanitizeFilename(originalName: string): string {
-  const lastDotIndex = originalName.lastIndexOf(".");
-  const name =
-    lastDotIndex !== -1 ? originalName.slice(0, lastDotIndex) : originalName;
-  const ext =
-    lastDotIndex !== -1
-      ? originalName.slice(lastDotIndex + 1).toLowerCase()
-      : "";
-
-  const cleanName =
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "file";
-
-  return ext ? `${cleanName}.${ext}` : cleanName;
-}
+import {
+  sanitizeFilename,
+  computeSha256,
+  isSafeFilename,
+  getMimeTypeForExtension,
+} from "../src/lib/media";
 
 describe("Media Helpers", () => {
   it("sanitizes simple filenames", () => {
@@ -40,28 +27,37 @@ describe("Media Helpers", () => {
     expect(sanitizeFilename("!@#$%^.png")).toBe("file.png");
   });
 
-  it("computes identical SHA-256 hashes for identical file contents", async () => {
-    const data1 = new TextEncoder().encode("Hello Cloudflare Media");
-    const data2 = new TextEncoder().encode("Hello Cloudflare Media");
-    const data3 = new TextEncoder().encode("Different Content");
+  it("computes identical SHA-256 hashes using computeSha256", async () => {
+    const buffer1 = new TextEncoder().encode("Hello Cloudflare Media").buffer;
+    const buffer2 = new TextEncoder().encode("Hello Cloudflare Media").buffer;
+    const buffer3 = new TextEncoder().encode("Different Content").buffer;
 
-    const hashBuffer1 = await crypto.subtle.digest("SHA-256", data1);
-    const hashHex1 = Array.from(new Uint8Array(hashBuffer1))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    const hash1 = await computeSha256(buffer1);
+    const hash2 = await computeSha256(buffer2);
+    const hash3 = await computeSha256(buffer3);
 
-    const hashBuffer2 = await crypto.subtle.digest("SHA-256", data2);
-    const hashHex2 = Array.from(new Uint8Array(hashBuffer2))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    expect(hash1).toBe(hash2);
+    expect(hash1).not.toBe(hash3);
+    expect(hash1.length).toBe(64);
+  });
 
-    const hashBuffer3 = await crypto.subtle.digest("SHA-256", data3);
-    const hashHex3 = Array.from(new Uint8Array(hashBuffer3))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+  it("identifies safe vs dangerous filenames with isSafeFilename", () => {
+    expect(isSafeFilename("valid-photo.png")).toBe(true);
+    expect(isSafeFilename("photo_2026-08.webp")).toBe(true);
+    expect(isSafeFilename("../../etc/passwd")).toBe(false);
+    expect(isSafeFilename("..\\windows\\system32")).toBe(false);
+    expect(isSafeFilename("uploads/file.png")).toBe(false);
+    expect(isSafeFilename("null\0byte.png")).toBe(false);
+    expect(isSafeFilename("")).toBe(false);
+  });
 
-    expect(hashHex1).toBe(hashHex2);
-    expect(hashHex1).not.toBe(hashHex3);
-    expect(hashHex1.length).toBe(64);
+  it("resolves correct MIME types for extensions", () => {
+    expect(getMimeTypeForExtension("photo.jpg")).toBe("image/jpeg");
+    expect(getMimeTypeForExtension("vector.svg")).toBe("image/svg+xml");
+    expect(getMimeTypeForExtension("video.mp4")).toBe("video/mp4");
+    expect(getMimeTypeForExtension("document.pdf")).toBe("application/pdf");
+    expect(getMimeTypeForExtension("unknown.custom")).toBe(
+      "application/octet-stream",
+    );
   });
 });
