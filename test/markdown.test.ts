@@ -223,4 +223,33 @@ old-photo.jpg in plain text
     expect(replaced).toContain("![[old-photo.jpg_backup.png]]");
     expect(replaced).toContain("old-photo.jpg in plain text");
   });
+
+  it("escapes highlight text via escapeHtml", async () => {
+    const html = await renderMarkdown(
+      "Check ==bold & \"air quotes\" are 'safe'== here.",
+    );
+    expect(html).toContain(
+      '<mark class="obsidian-highlight">bold &amp; &quot;air quotes&quot; are &#39;safe&#39;</mark>',
+    );
+  });
+
+  it("escapes callout title via escapeHtml", async () => {
+    const html = await renderMarkdown(
+      '> [!NOTE] Title & "quotes"\n> Body text.',
+    );
+    expect(html).toContain("Title &amp; &quot;quotes&quot;");
+    expect(html).not.toMatch(/callout-title[^>]*>Title & "quotes"/);
+  });
+
+  it("escapes wikilink label and encodes href", async () => {
+    const html = await renderMarkdown('See [[my post|Link & "quotes"]]');
+    expect(html).toContain("Link &amp; &quot;quotes&quot;");
+    expect(html).toContain('href="/posts/my%20post"');
+  });
+
+  it("escapes embed alt attribute and encodes src", async () => {
+    const html = await renderMarkdown('![[my image.png|Alt & "quotes"]]');
+    expect(html).toContain('alt="Alt &amp; &quot;quotes&quot;"');
+    expect(html).toContain('src="/media/my%20image.png"');
+  });
 });

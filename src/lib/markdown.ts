@@ -106,6 +106,16 @@ function parseWikilink(rawTarget: string, rawLabel?: string) {
   return { href, label };
 }
 
+export function escapeHtml(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function parseEmbedParameters(targetWithPipe: string, labelParam?: string) {
   const parts = targetWithPipe.split("|");
   const filename = parts[0].trim();
@@ -182,7 +192,7 @@ function remarkObsidianLinks() {
             // Highlight ==text==
             newChildren.push({
               type: "html",
-              value: `<mark class="obsidian-highlight">${match[4]}</mark>`,
+              value: `<mark class="obsidian-highlight">${escapeHtml(match[4])}</mark>`,
             });
           } else if (match[1] === "!") {
             // Embed ![[target]]
@@ -193,6 +203,9 @@ function remarkObsidianLinks() {
               rawLabel,
             );
             const ext = getExtension(filename);
+            const safeAlt = escapeHtml(alt);
+            const safeFilename = escapeHtml(filename);
+            const safeMediaSrc = `/media/${encodeURI(filename)}`;
 
             let styleStr = "";
             if (width && height) {
@@ -204,7 +217,7 @@ function remarkObsidianLinks() {
             if (IMAGE_EXTENSIONS.has(ext)) {
               newChildren.push({
                 type: "html",
-                value: `<img src="/media/${filename}" alt="${alt}" ${styleStr ? `style="${styleStr}"` : ""} class="obsidian-embed obsidian-image" loading="lazy" />`,
+                value: `<img src="${safeMediaSrc}" alt="${safeAlt}" ${styleStr ? `style="${styleStr}"` : ""} class="obsidian-embed obsidian-image" loading="lazy" />`,
               });
             } else if (VIDEO_EXTENSIONS.has(ext)) {
               const bigPlaySvg = renderSVG("play", {
@@ -225,7 +238,7 @@ function remarkObsidianLinks() {
 
               newChildren.push({
                 type: "html",
-                value: `<div class="obsidian-video-wrapper" ${styleStr ? `style="${styleStr}"` : ""}><video src="/media/${filename}" class="obsidian-embed obsidian-video" preload="metadata" playsinline></video><div class="video-play-overlay"><span class="video-play-btn">${bigPlaySvg}</span></div><div class="video-controls-bar"><button type="button" class="video-control-btn play-toggle" aria-label="Toggle Playback">${playSvg}${pauseSvg}</button><div class="video-timeline"><div class="video-progress"></div></div><span class="video-time">00:00</span></div></div>`,
+                value: `<div class="obsidian-video-wrapper" ${styleStr ? `style="${styleStr}"` : ""}><video src="${safeMediaSrc}" class="obsidian-embed obsidian-video" preload="metadata" playsinline></video><div class="video-play-overlay"><span class="video-play-btn">${bigPlaySvg}</span></div><div class="video-controls-bar"><button type="button" class="video-control-btn play-toggle" aria-label="Toggle Playback">${playSvg}${pauseSvg}</button><div class="video-timeline"><div class="video-progress"></div></div><span class="video-time">00:00</span></div></div>`,
               });
             } else if (AUDIO_EXTENSIONS.has(ext)) {
               const playSvg = renderSVG("play", {
@@ -241,17 +254,17 @@ function remarkObsidianLinks() {
 
               newChildren.push({
                 type: "html",
-                value: `<div class="obsidian-audio-wrapper my-4"><audio src="/media/${filename}" class="obsidian-embed obsidian-audio hidden" preload="metadata"></audio><div class="audio-controls-bar"><button type="button" class="audio-control-btn play-toggle" aria-label="Toggle Audio Playback">${playSvg}${pauseSvg}</button><div class="audio-track-info inline-flex items-center gap-1.5"><span class="audio-filename truncate" title="${alt || filename}">${alt || filename}</span></div><div class="audio-timeline"><div class="audio-progress"></div></div><span class="audio-time">00:00</span></div></div>`,
+                value: `<div class="obsidian-audio-wrapper my-4"><audio src="${safeMediaSrc}" class="obsidian-embed obsidian-audio hidden" preload="metadata"></audio><div class="audio-controls-bar"><button type="button" class="audio-control-btn play-toggle" aria-label="Toggle Audio Playback">${playSvg}${pauseSvg}</button><div class="audio-track-info inline-flex items-center gap-1.5"><span class="audio-filename truncate" title="${safeAlt || safeFilename}">${safeAlt || safeFilename}</span></div><div class="audio-timeline"><div class="audio-progress"></div></div><span class="audio-time">00:00</span></div></div>`,
               });
             } else if (ext === "pdf") {
               newChildren.push({
                 type: "html",
-                value: `<iframe src="/media/${filename}" class="obsidian-embed obsidian-pdf" style="width: 100%; height: 500px; border: 1px solid var(--border-main);" title="${alt}"></iframe>`,
+                value: `<iframe src="${safeMediaSrc}" class="obsidian-embed obsidian-pdf" style="width: 100%; height: 500px; border: 1px solid var(--border-main);" title="${safeAlt}"></iframe>`,
               });
             } else {
               newChildren.push({
                 type: "html",
-                value: `<a href="/media/${filename}" download class="obsidian-attachment-link inline-flex items-center gap-1.5 px-2.5 py-1 text-xs border border-(--border-subtle) bg-(--bg-surface-elevated) text-(--accent-green-bright) hover:border-(--accent-green)">📎 ${alt}</a>`,
+                value: `<a href="${safeMediaSrc}" download class="obsidian-attachment-link inline-flex items-center gap-1.5 px-2.5 py-1 text-xs border border-(--border-subtle) bg-(--bg-surface-elevated) text-(--accent-green-bright) hover:border-(--accent-green)">📎 ${safeAlt}</a>`,
               });
             }
           } else {
@@ -262,7 +275,7 @@ function remarkObsidianLinks() {
 
             newChildren.push({
               type: "html",
-              value: `<a href="${href}" class="obsidian-wikilink text-emerald-400 underline decoration-emerald-600/50 hover:decoration-emerald-400">${label}</a>`,
+              value: `<a href="${encodeURI(href)}" class="obsidian-wikilink text-emerald-400 underline decoration-emerald-600/50 hover:decoration-emerald-400">${escapeHtml(label)}</a>`,
             });
           }
 
@@ -309,10 +322,11 @@ function remarkObsidianCallouts() {
       if (!calloutMatch) return;
 
       const rawType = calloutMatch[1];
-      const type = rawType.toLowerCase();
+      const type = rawType.toLowerCase().replace(/[^a-z0-9_-]/g, "");
       const fold = calloutMatch[2]; // '+' or '-' or ''
       const customTitle =
         calloutMatch[3]?.trim() || type.charAt(0).toUpperCase() + type.slice(1);
+      const safeTitle = escapeHtml(customTitle);
       const remainingText = firstTextNode.value.slice(calloutMatch[0].length);
 
       if (remainingText.length > 0) {
@@ -338,7 +352,7 @@ function remarkObsidianCallouts() {
 
         const headerNode: BlockContent = {
           type: "html",
-          value: `<summary class="callout-header"><span class="callout-icon">${icon}</span><span class="callout-title">${customTitle}</span><span class="callout-fold-indicator">${fold === "+" ? "▾" : "▸"}</span></summary>`,
+          value: `<summary class="callout-header"><span class="callout-icon">${icon}</span><span class="callout-title">${safeTitle}</span><span class="callout-fold-indicator">${fold === "+" ? "▾" : "▸"}</span></summary>`,
         };
 
         node.children.unshift(headerNode);
@@ -353,7 +367,7 @@ function remarkObsidianCallouts() {
 
         const headerNode: BlockContent = {
           type: "html",
-          value: `<div class="callout-header"><span class="callout-icon">${icon}</span><span class="callout-title">${customTitle}</span></div>`,
+          value: `<div class="callout-header"><span class="callout-icon">${icon}</span><span class="callout-title">${safeTitle}</span></div>`,
         };
 
         node.children.unshift(headerNode);
