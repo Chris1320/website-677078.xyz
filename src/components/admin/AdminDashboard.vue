@@ -54,14 +54,72 @@ async function fetchPosts() {
   }
 }
 
+function updateEditUrl(idOrSlug?: string | null) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (idOrSlug) {
+    url.searchParams.set("edit", idOrSlug);
+  } else {
+    url.searchParams.delete("edit");
+  }
+  window.history.replaceState(null, "", url.toString());
+}
+
 function handleNewPost() {
   editingPost.value = null;
   currentTab.value = "editor";
+  updateEditUrl(null);
 }
 
 function handleEditPost(post: PostItem) {
   editingPost.value = post;
   currentTab.value = "editor";
+  updateEditUrl(post.id);
+}
+
+function handleBackToPosts() {
+  currentTab.value = "posts";
+  editingPost.value = null;
+  updateEditUrl(null);
+}
+
+function switchTab(tab: Tab) {
+  currentTab.value = tab;
+  if (tab !== "editor") {
+    editingPost.value = null;
+    updateEditUrl(null);
+  }
+}
+
+async function checkDeepLinkEdit() {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  const editTarget = params.get("edit");
+  if (!editTarget) return;
+
+  const foundInList = posts.value.find(
+    (p) => p.id === editTarget || p.slug === editTarget,
+  );
+  if (foundInList) {
+    handleEditPost(foundInList);
+    return;
+  }
+
+  // If not found in current loaded posts list, fetch directly
+  try {
+    loading.value = true;
+    const res = await fetch(`/api/admin/posts/${editTarget}`);
+    if (res.ok) {
+      const data: any = await res.json();
+      if (data.post) {
+        handleEditPost(data.post);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load deep-linked post:", err);
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function promptDeletePost(post: PostItem) {
@@ -103,6 +161,11 @@ async function confirmDeletePost() {
       await pruneOrphanFiles(postOrphansToPrompt.value);
     }
 
+    if (editingPost.value?.id === targetPost.id) {
+      editingPost.value = null;
+      updateEditUrl(null);
+    }
+
     postToDelete.value = null;
     postOrphansToPrompt.value = [];
     await fetchPosts();
@@ -115,6 +178,7 @@ async function confirmDeletePost() {
 
 function handlePostSaved(savedPost: PostItem) {
   editingPost.value = savedPost;
+  updateEditUrl(savedPost.id);
   fetchPosts();
 }
 
@@ -128,9 +192,10 @@ async function handleLogout() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchCurrentUser();
-  fetchPosts();
+  await fetchPosts();
+  checkDeepLinkEdit();
 });
 </script>
 
@@ -150,7 +215,7 @@ onMounted(() => {
       <div class="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          @click="currentTab = 'posts'"
+          @click="switchTab('posts')"
           :class="[
             'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border inline-flex items-center gap-1.5',
             currentTab === 'posts'
@@ -163,7 +228,7 @@ onMounted(() => {
         </button>
         <button
           type="button"
-          @click="currentTab = 'media'"
+          @click="switchTab('media')"
           :class="[
             'px-3 py-1.5 text-xs uppercase tracking-wider transition-colors border inline-flex items-center gap-1.5',
             currentTab === 'media'
@@ -218,7 +283,7 @@ onMounted(() => {
     <PostEditor
       v-else-if="currentTab === 'editor'"
       :initial-post="editingPost"
-      @back="currentTab = 'posts'"
+      @back="handleBackToPosts"
       @saved="handlePostSaved"
     />
 

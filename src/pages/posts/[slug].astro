@@ -13,13 +13,12 @@ export const prerender = false;
 const { slug } = Astro.params;
 
 if (!slug) {
-  return new Response(null, { status: 404, statusText: 'Not Found' });
+  return Astro.rewrite('/404');
 }
 
 let post: any = null;
 let postTags: { id: string; name: string; slug: string }[] = [];
 let renderedHtml = '';
-let isDraft = false;
 
 try {
   const db = getDb();
@@ -31,26 +30,23 @@ try {
     .get();
 
   if (!foundPost) {
-    return new Response(null, { status: 404, statusText: 'Not Found' });
+    return Astro.rewrite('/404');
   }
-
-  isDraft = foundPost.status === 'draft';
 
   // Guard draft posts
-  if (isDraft) {
+  if (foundPost.status === 'draft') {
     const authUser = await getAuthenticatedUser(Astro.request);
     if (!authUser) {
-      return new Response(null, { status: 404, statusText: 'Not Found' });
+      return Astro.rewrite('/404');
     }
-    // Never cache draft responses
-    Astro.response.headers.set('Cache-Control', 'private, no-store');
-  } else {
-    // Edge Cache Control for Public Published Post
-    Astro.response.headers.set(
-      'Cache-Control',
-      'public, max-age=0, s-maxage=86400, stale-while-revalidate=3600'
-    );
+    return Astro.redirect(`/admin?edit=${foundPost.id}`);
   }
+
+  // Edge Cache Control for Public Published Post
+  Astro.response.headers.set(
+    'Cache-Control',
+    'public, max-age=0, s-maxage=86400, stale-while-revalidate=3600'
+  );
 
   post = foundPost;
 
@@ -84,19 +80,6 @@ const readTime = calculateReadingTime(post.content);
 >
   <div class="content space-y-8">
     <AsciiTitle />
-
-    {isDraft && (
-      <div class="p-3 border border-amber-500 bg-amber-950/40 text-amber-300 text-xs font-mono flex items-center justify-between">
-        <span class="inline-flex items-center gap-2">
-          <Icon name="lucide:alert-triangle" class="w-4 h-4 text-amber-400" />
-          <span>[DRAFT PREVIEW] This post is unpublished and visible only in admin mode.</span>
-        </span>
-        <a href="/admin" class="underline hover:text-amber-100 inline-flex items-center gap-1">
-          <span>Open Editor</span>
-          <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
-        </a>
-      </div>
-    )}
 
     <div class="flex items-center justify-between text-xs font-mono text-(--text-muted) border-b border-(--border-main) pb-3">
       <a
