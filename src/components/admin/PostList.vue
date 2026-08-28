@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { Icon } from "@iconify/vue";
 
 export interface PostItem {
@@ -30,6 +30,10 @@ const emit = defineEmits<{
 const searchQuery = ref("");
 const statusFilter = ref<"all" | "published" | "draft">("all");
 
+// Pagination State
+const PAGE_SIZE = 10;
+const currentPage = ref(1);
+
 const filteredPosts = computed(() => {
   return props.posts.filter((post) => {
     const matchesStatus =
@@ -44,6 +48,20 @@ const filteredPosts = computed(() => {
 
     return matchesStatus && matchesSearch;
   });
+});
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredPosts.value.length / PAGE_SIZE));
+});
+
+const paginatedPosts = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE;
+  return filteredPosts.value.slice(start, start + PAGE_SIZE);
+});
+
+// Reset page on search or status filter change
+watch([searchQuery, statusFilter], () => {
+  currentPage.value = 1;
 });
 
 function formatDate(timestamp?: number | null) {
@@ -65,7 +83,7 @@ function formatDate(timestamp?: number | null) {
       <div class="flex items-center gap-2">
         <Icon icon="lucide:layers" class="w-4 h-4 text-(--accent-green)" />
         <span
-          class="text-xs uppercase tracking-widest text-(--accent-green) font-bold"
+          class="text-xs uppercase tracking-widest text-(--accent-green) font-bold font-mono"
         >
           POSTS // {{ posts.length }} TOTAL
         </span>
@@ -74,7 +92,7 @@ function formatDate(timestamp?: number | null) {
         <button
           type="button"
           @click="emit('refresh')"
-          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors inline-flex items-center gap-1.5"
+          class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors inline-flex items-center gap-1.5 font-mono"
           :disabled="loading"
         >
           <Icon
@@ -86,7 +104,7 @@ function formatDate(timestamp?: number | null) {
         <button
           type="button"
           @click="emit('new-post')"
-          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5"
+          class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5 font-mono"
         >
           <Icon icon="lucide:plus" class="w-4 h-4" />
           <span>Create Post</span>
@@ -105,7 +123,7 @@ function formatDate(timestamp?: number | null) {
           v-model="searchQuery"
           type="text"
           placeholder="Search by title, slug, tag..."
-          class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight)"
+          class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight) font-mono"
         />
       </div>
       <div
@@ -115,7 +133,7 @@ function formatDate(timestamp?: number | null) {
           type="button"
           @click="statusFilter = 'all'"
           :class="[
-            'px-3 py-1 text-xs uppercase tracking-wider transition-colors',
+            'px-3 py-1 text-xs uppercase tracking-wider transition-colors font-mono',
             statusFilter === 'all'
               ? 'bg-(--accent-green-dim) text-(--text-primary) font-bold'
               : 'text-(--text-secondary) hover:text-(--text-primary)',
@@ -127,7 +145,7 @@ function formatDate(timestamp?: number | null) {
           type="button"
           @click="statusFilter = 'published'"
           :class="[
-            'px-3 py-1 text-xs uppercase tracking-wider transition-colors',
+            'px-3 py-1 text-xs uppercase tracking-wider transition-colors font-mono',
             statusFilter === 'published'
               ? 'bg-(--accent-green) text-(--text-inverse) font-bold'
               : 'text-(--text-secondary) hover:text-(--text-primary)',
@@ -139,7 +157,7 @@ function formatDate(timestamp?: number | null) {
           type="button"
           @click="statusFilter = 'draft'"
           :class="[
-            'px-3 py-1 text-xs uppercase tracking-wider transition-colors',
+            'px-3 py-1 text-xs uppercase tracking-wider transition-colors font-mono',
             statusFilter === 'draft'
               ? 'bg-amber-600 text-black font-bold'
               : 'text-(--text-secondary) hover:text-(--text-primary)',
@@ -150,113 +168,172 @@ function formatDate(timestamp?: number | null) {
       </div>
     </div>
 
-    <!-- Posts Table -->
-    <div
-      class="border border-(--border-main) bg-(--bg-surface) overflow-x-auto"
-    >
+    <!-- Posts Table & Content -->
+    <div class="space-y-4">
       <div
-        v-if="loading && posts.length === 0"
-        class="p-8 text-center text-(--text-muted)"
+        class="border border-(--border-main) bg-(--bg-surface) overflow-x-auto"
       >
-        > Querying D1 database...
-      </div>
-      <div
-        v-else-if="filteredPosts.length === 0"
-        class="p-8 text-center text-(--text-muted)"
-      >
-        > No posts found.
-      </div>
-      <table v-else class="w-full text-left text-sm">
-        <thead
-          class="border-b border-(--border-main) bg-(--bg-surface-elevated) text-(--text-secondary) text-xs uppercase tracking-wider"
+        <div
+          v-if="loading && posts.length === 0"
+          class="p-8 text-center text-(--text-muted) font-mono text-sm"
         >
-          <tr>
-            <th class="p-3">Status</th>
-            <th class="p-3">Title & Slug</th>
-            <th class="p-3">Tags</th>
-            <th class="p-3">Updated</th>
-            <th class="p-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-(--border-subtle)">
-          <tr
-            v-for="post in filteredPosts"
-            :key="post.id"
-            class="hover:bg-(--bg-surface-hover) transition-colors group"
+          > Querying D1 database...
+        </div>
+        <div
+          v-else-if="filteredPosts.length === 0"
+          class="p-8 text-center text-(--text-muted) font-mono text-sm"
+        >
+          > No posts found matching filter.
+        </div>
+        <table v-else class="w-full text-left text-sm font-mono">
+          <thead
+            class="border-b border-(--border-main) bg-(--bg-surface-elevated) text-(--text-secondary) text-xs uppercase tracking-wider"
           >
-            <td class="p-3 whitespace-nowrap">
-              <span
-                :class="[
-                  'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider',
-                  post.status === 'published'
-                    ? 'border border-(--accent-green) text-(--accent-green) bg-(--accent-green-glow)'
-                    : 'border border-amber-500/50 text-amber-400 bg-amber-950/30',
-                ]"
-              >
-                {{ post.status }}
-              </span>
-            </td>
-            <td class="p-3">
-              <div
-                class="font-bold text-(--text-primary) group-hover:text-(--accent-green-bright) transition-colors"
-              >
-                {{ post.title }}
-              </div>
-              <div class="text-xs text-(--text-muted) mt-0.5">
-                /posts/{{ post.slug }}
-              </div>
-            </td>
-            <td class="p-3">
-              <div class="flex flex-wrap gap-1">
+            <tr>
+              <th class="p-3">Status</th>
+              <th class="p-3">Title & Slug</th>
+              <th class="p-3">Tags</th>
+              <th class="p-3">Updated</th>
+              <th class="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-(--border-subtle)">
+            <tr
+              v-for="post in paginatedPosts"
+              :key="post.id"
+              class="hover:bg-(--bg-surface-hover) transition-colors group"
+            >
+              <td class="p-3 whitespace-nowrap">
                 <span
-                  v-for="tag in post.tags"
-                  :key="tag.id"
-                  class="px-1.5 py-0.5 text-[10px] bg-(--bg-surface-elevated) border border-(--border-subtle) text-(--text-secondary)"
+                  :class="[
+                    'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider',
+                    post.status === 'published'
+                      ? 'border border-(--accent-green) text-(--accent-green) bg-(--accent-green-glow)'
+                      : 'border border-amber-500/50 text-amber-400 bg-amber-950/30',
+                  ]"
                 >
-                  #{{ tag.name }}
+                  {{ post.status }}
                 </span>
-                <span
-                  v-if="!post.tags || post.tags.length === 0"
-                  class="text-xs text-(--text-muted)"
+              </td>
+              <td class="p-3">
+                <div
+                  class="font-bold text-(--text-primary) group-hover:text-(--accent-green-bright) transition-colors"
                 >
-                  —
-                </span>
-              </div>
-            </td>
-            <td class="p-3 whitespace-nowrap text-xs text-(--text-secondary)">
-              {{ formatDate(post.updated_at) }}
-            </td>
-            <td class="p-3 text-right whitespace-nowrap space-x-2">
-              <a
-                v-if="post.status === 'published'"
-                :href="`/posts/${post.slug}`"
-                target="_blank"
-                class="px-2 py-1 text-xs border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main) inline-flex items-center gap-1"
-                title="View Live Page"
-              >
-                <Icon icon="lucide:external-link" class="w-3 h-3" />
-                <span>View</span>
-              </a>
-              <button
-                type="button"
-                @click="emit('edit-post', post)"
-                class="px-2 py-1 text-xs border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) inline-flex items-center gap-1"
-              >
-                <Icon icon="lucide:pencil" class="w-3 h-3" />
-                <span>Edit</span>
-              </button>
-              <button
-                type="button"
-                @click="emit('delete-post', post)"
-                class="px-2 py-1 text-xs border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/30 inline-flex items-center gap-1"
-              >
-                <Icon icon="lucide:trash-2" class="w-3 h-3" />
-                <span>Delete</span>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                  {{ post.title }}
+                </div>
+                <div class="text-xs text-(--text-muted) mt-0.5">
+                  /posts/{{ post.slug }}
+                </div>
+              </td>
+              <td class="p-3">
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    v-for="tag in post.tags"
+                    :key="tag.id"
+                    class="px-1.5 py-0.5 text-[10px] bg-(--bg-surface-elevated) border border-(--border-subtle) text-(--text-secondary)"
+                  >
+                    #{{ tag.name }}
+                  </span>
+                  <span
+                    v-if="!post.tags || post.tags.length === 0"
+                    class="text-xs text-(--text-muted)"
+                  >
+                    —
+                  </span>
+                </div>
+              </td>
+              <td class="p-3 whitespace-nowrap text-xs text-(--text-secondary)">
+                {{ formatDate(post.updated_at) }}
+              </td>
+              <td class="p-3 text-right whitespace-nowrap space-x-2">
+                <a
+                  v-if="post.status === 'published'"
+                  :href="`/posts/${post.slug}`"
+                  target="_blank"
+                  class="px-2 py-1 text-xs border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main) inline-flex items-center gap-1"
+                  title="View Live Page"
+                >
+                  <Icon icon="lucide:external-link" class="w-3 h-3" />
+                  <span>View</span>
+                </a>
+                <button
+                  type="button"
+                  @click="emit('edit-post', post)"
+                  class="px-2 py-1 text-xs border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) inline-flex items-center gap-1"
+                >
+                  <Icon icon="lucide:pencil" class="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  type="button"
+                  @click="emit('delete-post', post)"
+                  class="px-2 py-1 text-xs border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/30 inline-flex items-center gap-1"
+                >
+                  <Icon icon="lucide:trash-2" class="w-3 h-3" />
+                  <span>Delete</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Toolbar -->
+      <div
+        v-if="totalPages > 1"
+        class="flex flex-col sm:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs"
+      >
+        <div class="text-(--text-muted)">
+          Showing
+          <strong class="text-(--text-primary)">{{
+            paginatedPosts.length
+          }}</strong>
+          of
+          <strong class="text-(--text-primary)">{{
+            filteredPosts.length
+          }}</strong>
+          posts (Page {{ currentPage }} of {{ totalPages }})
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            @click="currentPage = Math.max(1, currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Icon icon="lucide:arrow-left" class="w-3.5 h-3.5" />
+            <span>Prev</span>
+          </button>
+
+          <div class="flex items-center gap-1">
+            <button
+              v-for="p in totalPages"
+              :key="p"
+              type="button"
+              @click="currentPage = p"
+              :class="[
+                'w-7 h-7 flex items-center justify-center text-xs border transition-colors',
+                p === currentPage
+                  ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                  : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
+              ]"
+            >
+              {{ p }}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            @click="currentPage = Math.min(totalPages, currentPage + 1)"
+            :disabled="currentPage === totalPages"
+            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <span>Next</span>
+            <Icon icon="lucide:arrow-right" class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
