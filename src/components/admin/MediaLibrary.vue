@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import { Icon } from "@iconify/vue";
-import { formatDate, formatBytes } from "../../lib/utils";
+import { formatDate, formatBytes, getPaginationWindow } from "../../lib/utils";
 import { MEDIA_PAGE_SIZE } from "../../lib/info";
+import { uploadFileWithProgress } from "../../lib/media";
 
 export interface MediaUsageItem {
   id: string;
@@ -18,6 +19,17 @@ export interface MediaUsageItem {
     slug: string;
     status?: "draft" | "published";
   }[];
+}
+
+interface UploadBatchState {
+  active: boolean;
+  totalFiles: number;
+  completedFiles: number;
+  currentFilename: string;
+  filePercent: number;
+  fileLoaded: number;
+  fileTotal: number;
+  overallPercent: number;
 }
 
 const mediaList = ref<MediaUsageItem[]>([]);
@@ -39,6 +51,16 @@ const sortBy = ref<
 const searchQuery = ref("");
 const preserveFilename = ref(false);
 const isUploading = ref(false);
+const uploadProgress = ref<UploadBatchState>({
+  active: false,
+  totalFiles: 0,
+  completedFiles: 0,
+  currentFilename: "",
+  filePercent: 0,
+  fileLoaded: 0,
+  fileTotal: 0,
+  overallPercent: 0,
+});
 const isPruning = ref(false);
 const copiedFilename = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -117,6 +139,10 @@ const filteredMedia = computed(() => {
 
 const totalPages = computed(() => {
   return Math.max(1, Math.ceil(filteredMedia.value.length / MEDIA_PAGE_SIZE));
+});
+
+const visiblePages = computed(() => {
+  return getPaginationWindow(currentPage.value, totalPages.value);
 });
 
 const paginatedMedia = computed(() => {
@@ -230,38 +256,62 @@ async function copyToClipboard(text: string, filenameKey: string) {
 }
 
 async function uploadFiles(files: FileList | File[]) {
+  if (!files || files.length === 0) return;
+
   isUploading.value = true;
   errorMessage.value = "";
   successMessage.value = "";
 
+  const fileArray = Array.from(files);
+  const total = fileArray.length;
   let deduplicatedCount = 0;
   let newCount = 0;
 
+  uploadProgress.value = {
+    active: true,
+    totalFiles: total,
+    completedFiles: 0,
+    currentFilename: "",
+    filePercent: 0,
+    fileLoaded: 0,
+    fileTotal: 0,
+    overallPercent: 0,
+  };
+
   try {
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append(
-        "preserveName",
-        preserveFilename.value ? "true" : "false",
+    for (let i = 0; i < total; i++) {
+      const file = fileArray[i];
+      uploadProgress.value.currentFilename = file.name;
+      uploadProgress.value.fileLoaded = 0;
+      uploadProgress.value.fileTotal = file.size;
+      uploadProgress.value.filePercent = 0;
+      uploadProgress.value.overallPercent = Math.round((i / total) * 100);
+
+      const data = await uploadFileWithProgress(
+        file,
+        preserveFilename.value,
+        (p) => {
+          uploadProgress.value.fileLoaded = p.loaded;
+          uploadProgress.value.fileTotal = p.total;
+          uploadProgress.value.filePercent = p.percent;
+          const fileFraction =
+            (p.loaded / Math.max(1, p.total)) * (100 / total);
+          uploadProgress.value.overallPercent = Math.min(
+            100,
+            Math.round((i / total) * 100 + fileFraction),
+          );
+        },
       );
 
-      const res = await fetch("/api/media/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data: any = await res.json();
-      if (!res.ok)
-        throw new Error(data.error || `Failed to upload ${file.name}`);
-
+      uploadProgress.value.completedFiles = i + 1;
       if (data.deduplicated) {
         deduplicatedCount++;
       } else {
         newCount++;
       }
     }
+
+    uploadProgress.value.overallPercent = 100;
 
     if (deduplicatedCount > 0 && newCount === 0) {
       successMessage.value = `Asset already exists in store (${deduplicatedCount} file(s) deduplicated).`;
@@ -273,9 +323,12 @@ async function uploadFiles(files: FileList | File[]) {
 
     await fetchMedia();
   } catch (err: any) {
-    errorMessage.value = err.message;
+    errorMessage.value = err.message || "Failed to upload file(s)";
   } finally {
-    isUploading.value = false;
+    setTimeout(() => {
+      uploadProgress.value.active = false;
+      isUploading.value = false;
+    }, 600);
   }
 }
 
@@ -536,6 +589,68 @@ onMounted(() => {
             />
             Keep original filename
           </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Progress Card -->
+    <div
+      v-if="uploadProgress.active"
+      class="p-4 border border-(--border-highlight) bg-(--bg-surface-elevated) space-y-3 font-mono text-xs shadow-lg"
+    >
+      <div class="flex items-center justify-between">
+        <div
+          class="flex items-center gap-2 text-(--accent-green-bright) font-bold truncate"
+        >
+          <Icon icon="lucide:loader" class="w-4 h-4 animate-spin shrink-0" />
+          <span class="truncate">
+            Uploading {{ uploadProgress.currentFilename }}
+          </span>
+        </div>
+        <div class="text-(--text-muted) shrink-0 pl-2">
+          {{ formatBytes(uploadProgress.fileLoaded) }} /
+          {{ formatBytes(uploadProgress.fileTotal) }}
+        </div>
+      </div>
+
+      <!-- Current File Progress Bar -->
+      <div class="space-y-1">
+        <div class="flex justify-between text-[11px] text-(--text-secondary)">
+          <span></span>
+          <span class="font-bold text-(--accent-green)"
+            >{{ uploadProgress.filePercent }}%</span
+          >
+        </div>
+        <div
+          class="h-2 bg-(--bg-primary) border border-(--border-subtle) overflow-hidden"
+        >
+          <div
+            class="h-full bg-(--accent-green) transition-all duration-150 ease-out"
+            :style="{ width: `${uploadProgress.filePercent}%` }"
+          ></div>
+        </div>
+      </div>
+
+      <div
+        v-if="uploadProgress.totalFiles > 1"
+        class="space-y-1 pt-1 border-t border-(--border-subtle)"
+      >
+        <div class="flex justify-between text-[11px] text-(--text-muted)">
+          <span
+            >{{ uploadProgress.completedFiles }} of
+            {{ uploadProgress.totalFiles }} completed</span
+          >
+          <span class="font-bold text-(--text-primary)"
+            >{{ uploadProgress.overallPercent }}%</span
+          >
+        </div>
+        <div
+          class="h-1.5 bg-(--bg-primary) border border-(--border-subtle) overflow-hidden"
+        >
+          <div
+            class="h-full bg-(--accent-green-dim) transition-all duration-150 ease-out"
+            :style="{ width: `${uploadProgress.overallPercent}%` }"
+          ></div>
         </div>
       </div>
     </div>
@@ -907,9 +1022,9 @@ onMounted(() => {
       <!-- Pagination Toolbar -->
       <div
         v-if="totalPages > 1"
-        class="flex flex-col sm:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs"
+        class="flex flex-col md:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs"
       >
-        <div class="text-(--text-muted)">
+        <div class="text-(--text-muted) whitespace-nowrap">
           Showing
           <strong class="text-(--text-primary)">{{
             paginatedMedia.length
@@ -920,37 +1035,46 @@ onMounted(() => {
           }}</strong>
           assets (Page {{ currentPage }} of {{ totalPages }})
         </div>
-        <div class="flex items-center gap-2">
+        <div
+          class="flex flex-wrap items-center justify-center gap-1.5 max-w-full"
+        >
           <button
             type="button"
             @click="currentPage = Math.max(1, currentPage - 1)"
             :disabled="currentPage === 1"
-            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-2.5 py-1 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
           >
             <Icon icon="lucide:arrow-left" class="w-3.5 h-3.5" />
             <span>Prev</span>
           </button>
-          <div class="flex items-center gap-1">
-            <button
-              v-for="p in totalPages"
-              :key="p"
-              type="button"
-              @click="currentPage = p"
-              :class="[
-                'w-7 h-7 flex items-center justify-center text-xs border transition-colors',
-                p === currentPage
-                  ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
-                  : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
-              ]"
-            >
-              {{ p }}
-            </button>
+          <div class="flex flex-wrap items-center gap-1">
+            <template v-for="(p, idx) in visiblePages" :key="idx">
+              <span
+                v-if="p === '...'"
+                class="w-7 h-7 flex items-center justify-center text-xs text-(--text-muted) select-none"
+              >
+                ...
+              </span>
+              <button
+                v-else
+                type="button"
+                @click="currentPage = Number(p)"
+                :class="[
+                  'w-7 h-7 flex items-center justify-center text-xs border transition-colors',
+                  p === currentPage
+                    ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                    : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
+                ]"
+              >
+                {{ p }}
+              </button>
+            </template>
           </div>
           <button
             type="button"
             @click="currentPage = Math.min(totalPages, currentPage + 1)"
             :disabled="currentPage === totalPages"
-            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-2.5 py-1 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
           >
             <span>Next</span>
             <Icon icon="lucide:arrow-right" class="w-3.5 h-3.5" />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { Icon } from "@iconify/vue";
-import { formatDate } from "../../lib/utils";
+import { formatDate, getPaginationWindow } from "../../lib/utils";
 import { POSTS_PAGE_SIZE } from "../../lib/info";
 
 export interface PostItem {
@@ -52,6 +52,10 @@ const filteredPosts = computed(() => {
 
 const totalPages = computed(() => {
   return Math.max(1, Math.ceil(filteredPosts.value.length / POSTS_PAGE_SIZE));
+});
+
+const visiblePages = computed(() => {
+  return getPaginationWindow(currentPage.value, totalPages.value);
 });
 
 const paginatedPosts = computed(() => {
@@ -271,9 +275,9 @@ watch([searchQuery, statusFilter], () => {
       <!-- Pagination Toolbar -->
       <div
         v-if="totalPages > 1"
-        class="flex flex-col sm:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs"
+        class="flex flex-col md:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs"
       >
-        <div class="text-(--text-muted)">
+        <div class="text-(--text-muted) whitespace-nowrap">
           Showing
           <strong class="text-(--text-primary)">{{
             paginatedPosts.length
@@ -285,39 +289,48 @@ watch([searchQuery, statusFilter], () => {
           posts (Page {{ currentPage }} of {{ totalPages }})
         </div>
 
-        <div class="flex items-center gap-2">
+        <div
+          class="flex flex-wrap items-center justify-center gap-1.5 max-w-full"
+        >
           <button
             type="button"
             @click="currentPage = Math.max(1, currentPage - 1)"
             :disabled="currentPage === 1"
-            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-2.5 py-1 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
           >
             <Icon icon="lucide:arrow-left" class="w-3.5 h-3.5" />
             <span>Prev</span>
           </button>
 
-          <div class="flex items-center gap-1">
-            <button
-              v-for="p in totalPages"
-              :key="p"
-              type="button"
-              @click="currentPage = p"
-              :class="[
-                'w-7 h-7 flex items-center justify-center text-xs border transition-colors',
-                p === currentPage
-                  ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
-                  : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
-              ]"
-            >
-              {{ p }}
-            </button>
+          <div class="flex flex-wrap items-center gap-1">
+            <template v-for="(p, idx) in visiblePages" :key="idx">
+              <span
+                v-if="p === '...'"
+                class="w-7 h-7 flex items-center justify-center text-xs text-(--text-muted) select-none"
+              >
+                ...
+              </span>
+              <button
+                v-else
+                type="button"
+                @click="currentPage = Number(p)"
+                :class="[
+                  'w-7 h-7 flex items-center justify-center text-xs border transition-colors',
+                  p === currentPage
+                    ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                    : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
+                ]"
+              >
+                {{ p }}
+              </button>
+            </template>
           </div>
 
           <button
             type="button"
             @click="currentPage = Math.min(totalPages, currentPage + 1)"
             :disabled="currentPage === totalPages"
-            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-2.5 py-1 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
           >
             <span>Next</span>
             <Icon icon="lucide:arrow-right" class="w-3.5 h-3.5" />

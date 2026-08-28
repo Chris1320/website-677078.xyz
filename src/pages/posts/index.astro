@@ -5,7 +5,7 @@ import { Icon } from 'astro-icon/components';
 import { desc, asc, eq } from 'drizzle-orm';
 import { getDb, posts, tags, post_tags } from '../../db';
 import { calculateReadingTime } from '../../lib/markdown';
-import { formatDate } from '../../lib/utils';
+import { formatDate, getPaginationWindow } from '../../lib/utils';
 import { POSTS_PAGE_SIZE } from '../../lib/info';
 
 export const prerender = false;
@@ -294,51 +294,57 @@ function getPageUrl(targetPage: number) {
         </div>
       )}
       {totalPages > 1 && (
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs">
-          <div class="text-(--text-muted)">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs">
+          <div class="text-(--text-muted) whitespace-nowrap">
             Showing <strong class="text-(--text-primary)">{filteredPosts.length}</strong> of{' '}
             <strong class="text-(--text-primary)">{totalFilteredCount}</strong> posts (Page {currentPage} of {totalPages})
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-center gap-1.5 max-w-full">
             {currentPage > 1 ? (
               <a
                 href={getPageUrl(currentPage - 1)}
-                class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1"
+                class="px-2.5 py-1 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 text-xs"
               >
                 <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
                 <span>Prev</span>
               </a>
             ) : (
-              <span class="px-3 py-1.5 border border-(--border-subtle) text-(--text-muted) opacity-50 cursor-not-allowed inline-flex items-center gap-1">
+              <span class="px-2.5 py-1 border border-(--border-subtle) text-(--text-muted) opacity-50 cursor-not-allowed inline-flex items-center gap-1 text-xs">
                 <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
                 <span>Prev</span>
               </span>
             )}
-            <div class="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <a
-                  href={getPageUrl(p)}
-                  class:list={[
-                    'w-8 h-8 flex items-center justify-center text-xs border transition-colors',
-                    p === currentPage
-                      ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
-                      : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
-                  ]}
-                >
-                  {p}
-                </a>
-              ))}
+            <div class="flex flex-wrap items-center gap-1">
+              {getPaginationWindow(currentPage, totalPages).map((p) =>
+                p === '...' ? (
+                  <span class="w-7 h-7 flex items-center justify-center text-xs text-(--text-muted) select-none">
+                    ...
+                  </span>
+                ) : (
+                  <a
+                    href={getPageUrl(Number(p))}
+                    class:list={[
+                      'w-7 h-7 flex items-center justify-center text-xs border transition-colors',
+                      p === currentPage
+                        ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                        : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
+                    ]}
+                  >
+                    {p}
+                  </a>
+                )
+              )}
             </div>
             {currentPage < totalPages ? (
               <a
                 href={getPageUrl(currentPage + 1)}
-                class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1"
+                class="px-2.5 py-1 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1 text-xs"
               >
                 <span>Next</span>
                 <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
               </a>
             ) : (
-              <span class="px-3 py-1.5 border border-(--border-subtle) text-(--text-muted) opacity-50 cursor-not-allowed inline-flex items-center gap-1">
+              <span class="px-2.5 py-1 border border-(--border-subtle) text-(--text-muted) opacity-50 cursor-not-allowed inline-flex items-center gap-1 text-xs">
                 <span>Next</span>
                 <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
               </span>

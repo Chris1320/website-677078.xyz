@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { slugify, formatDate, formatBytes } from "../src/lib/utils";
+import {
+  slugify,
+  formatDate,
+  formatBytes,
+  getPaginationWindow,
+} from "../src/lib/utils";
 
 describe("Shared Utilities", () => {
   describe("slugify", () => {
@@ -34,6 +39,51 @@ describe("Shared Utilities", () => {
       expect(formatBytes(1024)).toBe("1.0 KB");
       expect(formatBytes(1024 * 1024 * 3.5)).toBe("3.5 MB");
       expect(formatBytes(1024 * 1024 * 1024 * 2.1)).toBe("2.1 GB");
+    });
+  });
+
+  describe("getPaginationWindow", () => {
+    it("returns all pages when totalPages <= 7", () => {
+      expect(getPaginationWindow(1, 5)).toEqual([1, 2, 3, 4, 5]);
+      expect(getPaginationWindow(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    });
+
+    it("returns beginning window with trailing ellipsis when current page <= 4", () => {
+      expect(getPaginationWindow(1, 23)).toEqual([1, 2, 3, 4, 5, "...", 23]);
+      expect(getPaginationWindow(4, 23)).toEqual([1, 2, 3, 4, 5, "...", 23]);
+    });
+
+    it("returns ending window with leading ellipsis when near end", () => {
+      expect(getPaginationWindow(20, 23)).toEqual([
+        1,
+        "...",
+        19,
+        20,
+        21,
+        22,
+        23,
+      ]);
+      expect(getPaginationWindow(23, 23)).toEqual([
+        1,
+        "...",
+        19,
+        20,
+        21,
+        22,
+        23,
+      ]);
+    });
+
+    it("returns middle window with both ellipses when in the middle", () => {
+      expect(getPaginationWindow(14, 23)).toEqual([
+        1,
+        "...",
+        13,
+        14,
+        15,
+        "...",
+        23,
+      ]);
     });
   });
 });
