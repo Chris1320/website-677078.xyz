@@ -10,9 +10,9 @@ describe("Obsidian Markdown Engine", () => {
     const md =
       "Check out [[intro-to-workers]] and [[cloudflare-d1|Cloudflare D1 Guide]].";
     const html = await renderMarkdown(md);
-    expect(html).toContain('href="/blogs/intro-to-workers"');
+    expect(html).toContain('href="/posts/intro-to-workers"');
     expect(html).toContain("intro-to-workers");
-    expect(html).toContain('href="/blogs/cloudflare-d1"');
+    expect(html).toContain('href="/posts/cloudflare-d1"');
     expect(html).toContain("Cloudflare D1 Guide");
   });
 
@@ -63,6 +63,71 @@ And a standard link: [Google](https://google.com)
       "screencast-def.mp4",
       "photo-ghi.webp",
     ]);
+  });
+
+  it("strips Obsidian comments and renders highlights", async () => {
+    const md = "Visible %%Hidden comment%% text with ==important highlight==.";
+    const html = await renderMarkdown(md);
+    expect(html).not.toContain("Hidden comment");
+    expect(html).toContain(
+      '<mark class="obsidian-highlight">important highlight</mark>',
+    );
+    expect(html).toContain("Visible  text with");
+  });
+
+  it("renders GFM tables and task lists", async () => {
+    const md = `
+| Head1 | Head2 |
+|---|---|
+| Cell1 | Cell2 |
+
+- [ ] Todo
+- [x] Done
+    `;
+    const html = await renderMarkdown(md);
+    expect(html).toContain("<table>");
+    expect(html).toContain("<th>Head1</th>");
+    expect(html).toContain("<td>Cell1</td>");
+    expect(html).toContain('type="checkbox"');
+  });
+
+  it("renders sized embeds and PDF attachments", async () => {
+    const md = `
+![[photo.png|300]]
+![[photo2.png|300x150]]
+![[doc.pdf|Manual]]
+    `;
+    const html = await renderMarkdown(md);
+    expect(html).toContain('style="width: 300px; max-width: 100%;"');
+    expect(html).toContain(
+      'style="width: 300px; height: 150px; max-width: 100%; object-fit: cover;"',
+    );
+    expect(html).toContain('<iframe src="/media/doc.pdf"');
+  });
+
+  it("renders foldable callouts and custom anchors", async () => {
+    const md = `
+> [!faq]- Are you sure?
+> Yes this is collapsed by default.
+
+See [[another-post#Architecture|Architecture Section]] and [[#Local Heading|Local Header]].
+    `;
+    const html = await renderMarkdown(md);
+    expect(html).toContain(
+      '<details class="obsidian-callout callout-faq callout-foldable',
+    );
+    expect(html).toContain('<summary class="callout-header">');
+    expect(html).toContain('href="/posts/another-post#architecture"');
+    expect(html).toContain("Architecture Section");
+    expect(html).toContain('href="#local-heading"');
+    expect(html).toContain("Local Header");
+  });
+
+  it("renders KaTeX math expressions", async () => {
+    const md = "Here is formula $E=mc^2$ and block math:\n\n$$\\frac{a}{b}$$";
+    const html = await renderMarkdown(md);
+    expect(html).toContain("katex");
+    expect(html).toContain("katex-html");
   });
 
   it("calculates reading time", () => {
