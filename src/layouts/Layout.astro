@@ -50,134 +50,100 @@ import Footer from '../components/Footer.astro';
         </script>
 
         <script>
-            function initVideoEmbeds() {
-                function formatTime(seconds: number) {
-                    if (!seconds || isNaN(seconds)) return '00:00';
-                    const mins = Math.floor(seconds / 60);
-                    const secs = Math.floor(seconds % 60);
-                    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                }
+            function initMediaEmbeds() {
+                const formatTime = (secs: number) => {
+                    if (!secs || isNaN(secs)) return '00:00';
+                    const m = Math.floor(secs / 60);
+                    const s = Math.floor(secs % 60);
+                    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                };
+
+                const getMediaAndWrapper = (el: HTMLElement) => {
+                    const wrapper = el.closest('.obsidian-video-wrapper, .obsidian-audio-wrapper');
+                    const media = wrapper?.querySelector<HTMLMediaElement>('.obsidian-video, .obsidian-audio');
+                    return { wrapper, media };
+                };
 
                 document.addEventListener('click', (e) => {
-                    const target = e.target;
-                    if (!(target instanceof HTMLElement)) return;
+                    const target = e.target as HTMLElement | null;
+                    if (!target) return;
 
-                    const timeline = target.closest('.video-timeline') as HTMLElement | null;
+                    const timeline = target.closest<HTMLElement>('.video-timeline, .audio-timeline');
                     if (timeline) {
-                        const wrapper = timeline.closest('.obsidian-video-wrapper');
-                        const video = wrapper?.querySelector('.obsidian-video') as HTMLVideoElement | null;
-                        if (video && video.duration) {
+                        const { media } = getMediaAndWrapper(timeline);
+                        if (media?.duration) {
                             const rect = timeline.getBoundingClientRect();
                             const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                            video.currentTime = pos * video.duration;
+                            media.currentTime = pos * media.duration;
                         }
                         return;
                     }
 
-                    const playToggleBtn = target.closest('.video-control-btn.play-toggle');
-                    if (playToggleBtn) {
-                        const wrapper = playToggleBtn.closest('.obsidian-video-wrapper');
-                        const video = wrapper?.querySelector('.obsidian-video') as HTMLVideoElement | null;
-                        if (video) {
-                            if (video.paused) video.play().catch(() => {});
-                            else video.pause();
+                    const playBtn = target.closest('.video-control-btn.play-toggle, .audio-control-btn.play-toggle');
+                    if (playBtn) {
+                        const { media } = getMediaAndWrapper(playBtn as HTMLElement);
+                        if (media) {
+                            if (media.paused) media.play().catch(() => {});
+                            else media.pause();
                         }
                         return;
                     }
 
-                    const video = target.closest('.obsidian-video') as HTMLVideoElement | null;
+                    const video = target.closest<HTMLVideoElement>('.obsidian-video');
                     if (video && !target.closest('.video-controls-bar')) {
-                        if (video.paused) {
-                            video.play().catch(() => {});
-                        } else {
-                            video.pause();
-                        }
+                        if (video.paused) video.play().catch(() => {});
+                        else video.pause();
                     }
                 });
 
-                document.addEventListener(
-                    'timeupdate',
-                    (e) => {
-                        const target = e.target;
-                        if (target instanceof HTMLVideoElement && target.classList.contains('obsidian-video')) {
-                            const wrapper = target.closest('.obsidian-video-wrapper');
-                            if (!wrapper) return;
-                            const progress = wrapper.querySelector('.video-progress') as HTMLElement | null;
-                            const timeDisplay = wrapper.querySelector('.video-time') as HTMLElement | null;
-                            if (progress && target.duration) {
-                                const pct = (target.currentTime / target.duration) * 100;
-                                progress.style.width = `${pct}%`;
-                            }
-                            if (timeDisplay) {
-                                timeDisplay.textContent = `${formatTime(target.currentTime)} / ${formatTime(target.duration)}`;
-                            }
-                        }
-                    },
-                    true
-                );
+                const updateProgress = (media: HTMLMediaElement) => {
+                    const wrapper = media.closest('.obsidian-video-wrapper, .obsidian-audio-wrapper');
+                    if (!wrapper) return;
+                    const progress = wrapper.querySelector<HTMLElement>('.video-progress, .audio-progress');
+                    const timeDisplay = wrapper.querySelector<HTMLElement>('.video-time, .audio-time');
+                    if (progress && media.duration) {
+                        progress.style.width = `${(media.currentTime / media.duration) * 100}%`;
+                    }
+                    if (timeDisplay) {
+                        timeDisplay.textContent = media.duration
+                            ? `${formatTime(media.currentTime)} / ${formatTime(media.duration)}`
+                            : '00:00';
+                    }
+                };
 
-                document.addEventListener(
-                    'loadedmetadata',
-                    (e) => {
-                        const target = e.target;
-                        if (target instanceof HTMLVideoElement && target.classList.contains('obsidian-video')) {
-                            const wrapper = target.closest('.obsidian-video-wrapper');
-                            const timeDisplay = wrapper?.querySelector('.video-time') as HTMLElement | null;
-                            if (timeDisplay && target.duration) {
-                                timeDisplay.textContent = `00:00 / ${formatTime(target.duration)}`;
-                            }
-                        }
-                    },
-                    true
-                );
+                const setPlayingState = (media: HTMLMediaElement, isPlaying: boolean) => {
+                    const wrapper = media.closest('.obsidian-video-wrapper, .obsidian-audio-wrapper');
+                    if (!wrapper) return;
+                    wrapper.classList.toggle('is-playing', isPlaying);
+                    wrapper.querySelector('.play-icon')?.classList.toggle('hidden', isPlaying);
+                    wrapper.querySelector('.pause-icon')?.classList.toggle('hidden', !isPlaying);
+                };
 
-                document.addEventListener(
-                    'play',
-                    (e) => {
-                        const target = e.target;
-                        if (target instanceof HTMLVideoElement && target.classList.contains('obsidian-video')) {
-                            const wrapper = target.closest('.obsidian-video-wrapper');
-                            wrapper?.classList.add('is-playing');
-                            wrapper?.querySelector('.play-icon')?.classList.add('hidden');
-                            wrapper?.querySelector('.pause-icon')?.classList.remove('hidden');
-                        }
-                    },
-                    true
-                );
+                document.addEventListener('timeupdate', (e) => {
+                    if (e.target instanceof HTMLMediaElement) updateProgress(e.target);
+                }, true);
 
-                document.addEventListener(
-                    'pause',
-                    (e) => {
-                        const target = e.target;
-                        if (target instanceof HTMLVideoElement && target.classList.contains('obsidian-video')) {
-                            const wrapper = target.closest('.obsidian-video-wrapper');
-                            wrapper?.classList.remove('is-playing');
-                            wrapper?.querySelector('.play-icon')?.classList.remove('hidden');
-                            wrapper?.querySelector('.pause-icon')?.classList.add('hidden');
-                        }
-                    },
-                    true
-                );
+                document.addEventListener('loadedmetadata', (e) => {
+                    if (e.target instanceof HTMLMediaElement) updateProgress(e.target);
+                }, true);
 
-                document.addEventListener(
-                    'ended',
-                    (e) => {
-                        const target = e.target;
-                        if (target instanceof HTMLVideoElement && target.classList.contains('obsidian-video')) {
-                            const wrapper = target.closest('.obsidian-video-wrapper');
-                            wrapper?.classList.remove('is-playing');
-                            wrapper?.querySelector('.play-icon')?.classList.remove('hidden');
-                            wrapper?.querySelector('.pause-icon')?.classList.add('hidden');
-                        }
-                    },
-                    true
-                );
+                document.addEventListener('play', (e) => {
+                    if (e.target instanceof HTMLMediaElement) setPlayingState(e.target, true);
+                }, true);
+
+                document.addEventListener('pause', (e) => {
+                    if (e.target instanceof HTMLMediaElement) setPlayingState(e.target, false);
+                }, true);
+
+                document.addEventListener('ended', (e) => {
+                    if (e.target instanceof HTMLMediaElement) setPlayingState(e.target, false);
+                }, true);
             }
 
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initVideoEmbeds);
+                document.addEventListener('DOMContentLoaded', initMediaEmbeds);
             } else {
-                initVideoEmbeds();
+                initMediaEmbeds();
             }
         </script>
     </head>

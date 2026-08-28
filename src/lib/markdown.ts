@@ -228,9 +228,20 @@ function remarkObsidianLinks() {
                 value: `<div class="obsidian-video-wrapper" ${styleStr ? `style="${styleStr}"` : ""}><video src="/media/${filename}" class="obsidian-embed obsidian-video" preload="metadata" playsinline></video><div class="video-play-overlay"><span class="video-play-btn">${bigPlaySvg}</span></div><div class="video-controls-bar"><button type="button" class="video-control-btn play-toggle" aria-label="Toggle Playback">${playSvg}${pauseSvg}</button><div class="video-timeline"><div class="video-progress"></div></div><span class="video-time">00:00</span></div></div>`,
               });
             } else if (AUDIO_EXTENSIONS.has(ext)) {
+              const playSvg = renderSVG("play", {
+                width: 14,
+                height: 14,
+                className: "play-icon fill-current",
+              });
+              const pauseSvg = renderSVG("pause", {
+                width: 14,
+                height: 14,
+                className: "pause-icon hidden fill-current",
+              });
+
               newChildren.push({
                 type: "html",
-                value: `<audio src="/media/${filename}" controls class="obsidian-embed obsidian-audio" preload="metadata"></audio>`,
+                value: `<div class="obsidian-audio-wrapper my-4"><audio src="/media/${filename}" class="obsidian-embed obsidian-audio hidden" preload="metadata"></audio><div class="audio-controls-bar"><button type="button" class="audio-control-btn play-toggle" aria-label="Toggle Audio Playback">${playSvg}${pauseSvg}</button><div class="audio-track-info inline-flex items-center gap-1.5"><span class="audio-filename truncate" title="${alt || filename}">${alt || filename}</span></div><div class="audio-timeline"><div class="audio-progress"></div></div><span class="audio-time">00:00</span></div></div>`,
               });
             } else if (ext === "pdf") {
               newChildren.push({

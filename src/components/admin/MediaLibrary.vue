@@ -116,77 +116,64 @@ function isVideo(mimeType: string) {
   return mimeType.startsWith("video/");
 }
 
-function toggleVideoPlay(e: Event) {
-  const video = e.target as HTMLVideoElement;
-  if (!video) return;
-  const container = video.closest(".group\\/video");
-  const playOverlay = container?.querySelector(
-    ".video-play-overlay",
-  ) as HTMLElement | null;
-  const playIcon = container?.querySelector(".play-icon") as HTMLElement | null;
-  const pauseIcon = container?.querySelector(
-    ".pause-icon",
-  ) as HTMLElement | null;
+function isAudio(mimeType: string) {
+  return mimeType.startsWith("audio/");
+}
 
-  if (video.paused) {
-    video.play().catch(() => {});
+function toggleMediaPlay(e: Event) {
+  const target = e.currentTarget as HTMLElement;
+  const container = target.closest(".group\\/media");
+  const media = container?.querySelector<HTMLMediaElement>("video, audio");
+  const playOverlay = container?.querySelector<HTMLElement>(
+    ".video-play-overlay",
+  );
+  const playIcon = container?.querySelector<HTMLElement>(".play-icon");
+  const pauseIcon = container?.querySelector<HTMLElement>(".pause-icon");
+
+  if (!media) return;
+  if (media.paused) {
+    media.play().catch(() => {});
     if (playOverlay) playOverlay.style.opacity = "0";
-    if (playIcon) playIcon.classList.add("hidden");
-    if (pauseIcon) pauseIcon.classList.remove("hidden");
+    playIcon?.classList.add("hidden");
+    pauseIcon?.classList.remove("hidden");
   } else {
-    video.pause();
+    media.pause();
     if (playOverlay) playOverlay.style.opacity = "1";
-    if (playIcon) playIcon.classList.remove("hidden");
-    if (pauseIcon) pauseIcon.classList.add("hidden");
+    playIcon?.classList.remove("hidden");
+    pauseIcon?.classList.add("hidden");
   }
 }
 
-function toggleVideoPlayFromBtn(e: Event) {
-  const btn = e.currentTarget as HTMLElement;
-  const container = btn.closest(".group\\/video");
-  const video = container?.querySelector("video") as HTMLVideoElement | null;
-  if (video) {
-    toggleVideoPlay({ target: video } as any);
-  }
-}
-
-function onVideoTimeUpdate(e: Event) {
-  const video = e.target as HTMLVideoElement;
-  if (!video || !video.duration) return;
-  const container = video.closest(".group\\/video");
-  const progress = container?.querySelector(
-    ".video-progress",
-  ) as HTMLElement | null;
+function onMediaTimeUpdate(e: Event) {
+  const media = e.target as HTMLMediaElement;
+  if (!media?.duration) return;
+  const container = media.closest(".group\\/media");
+  const progress = container?.querySelector<HTMLElement>(".media-progress");
   if (progress) {
-    const pct = (video.currentTime / video.duration) * 100;
-    progress.style.width = `${pct}%`;
+    progress.style.width = `${(media.currentTime / media.duration) * 100}%`;
   }
 }
 
-function onVideoEnded(e: Event) {
-  const video = e.target as HTMLVideoElement;
-  if (!video) return;
-  const container = video.closest(".group\\/video");
-  const playOverlay = container?.querySelector(
+function onMediaEnded(e: Event) {
+  const media = e.target as HTMLMediaElement;
+  if (!media) return;
+  const container = media.closest(".group\\/media");
+  const playOverlay = container?.querySelector<HTMLElement>(
     ".video-play-overlay",
-  ) as HTMLElement | null;
-  const playIcon = container?.querySelector(".play-icon") as HTMLElement | null;
-  const pauseIcon = container?.querySelector(
-    ".pause-icon",
-  ) as HTMLElement | null;
+  );
   if (playOverlay) playOverlay.style.opacity = "1";
-  if (playIcon) playIcon.classList.remove("hidden");
-  if (pauseIcon) pauseIcon.classList.add("hidden");
+  container?.querySelector(".play-icon")?.classList.remove("hidden");
+  container?.querySelector(".pause-icon")?.classList.add("hidden");
 }
 
-function seekVideo(e: MouseEvent) {
+function seekMedia(e: MouseEvent) {
   const timeline = e.currentTarget as HTMLElement;
-  const container = timeline.closest(".group\\/video");
-  const video = container?.querySelector("video") as HTMLVideoElement | null;
-  if (video && video.duration) {
+  const container = timeline.closest(".group\\/media");
+  const media = container?.querySelector<HTMLMediaElement>("video, audio");
+  if (media?.duration) {
     const rect = timeline.getBoundingClientRect();
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    video.currentTime = pos * video.duration;
+    media.currentTime = pos * media.duration;
   }
 }
 
@@ -552,22 +539,22 @@ onMounted(() => {
             />
             <div
               v-else-if="isVideo(item.mime_type)"
-              class="w-full h-full relative group/video flex items-center justify-center bg-(--bg-primary) overflow-hidden"
+              class="w-full h-full relative group/media flex items-center justify-center bg-(--bg-primary) overflow-hidden"
             >
               <video
                 :src="`/media/${item.filename}`"
                 class="w-full h-full object-contain cursor-pointer"
                 preload="metadata"
                 playsinline
-                @click="toggleVideoPlay($event)"
-                @timeupdate="onVideoTimeUpdate($event)"
-                @ended="onVideoEnded($event)"
+                @click="toggleMediaPlay($event)"
+                @timeupdate="onMediaTimeUpdate($event)"
+                @ended="onMediaEnded($event)"
               ></video>
               <div
                 class="video-play-overlay absolute inset-0 flex items-center justify-center pointer-events-none bg-black/25 transition-opacity duration-200"
               >
                 <span
-                  class="w-10 h-10 rounded-full border border-(--border-highlight) bg-(--bg-surface-elevated) text-(--accent-green-bright) flex items-center justify-center shadow-lg transform group-hover/video:scale-110 transition-transform"
+                  class="w-10 h-10 rounded-full border border-(--border-highlight) bg-(--bg-surface-elevated) text-(--accent-green-bright) flex items-center justify-center shadow-lg transform group-hover/media:scale-110 transition-transform"
                 >
                   <Icon
                     icon="lucide:play"
@@ -576,11 +563,11 @@ onMounted(() => {
                 </span>
               </div>
               <div
-                class="absolute bottom-0 left-0 right-0 p-2 bg-linear-to-t from-black/80 to-transparent flex items-center gap-2 font-mono text-[10px] text-white opacity-0 group-hover/video:opacity-100 transition-opacity z-10"
+                class="absolute bottom-0 left-0 right-0 p-2 bg-linear-to-t from-black/80 to-transparent flex items-center gap-2 font-mono text-[10px] text-white opacity-0 group-hover/media:opacity-100 transition-opacity z-10"
               >
                 <button
                   type="button"
-                  @click.stop="toggleVideoPlayFromBtn($event)"
+                  @click.stop="toggleMediaPlay($event)"
                   class="text-(--accent-green) hover:text-(--accent-green-bright) p-0.5"
                 >
                   <Icon
@@ -593,11 +580,58 @@ onMounted(() => {
                   />
                 </button>
                 <div
-                  class="flex-1 h-1.5 bg-white/20 rounded cursor-pointer relative hover:h-2 transition-all video-timeline"
-                  @click.stop="seekVideo($event)"
+                  class="flex-1 h-1.5 bg-white/20 rounded cursor-pointer relative hover:h-2 transition-all"
+                  @click.stop="seekMedia($event)"
                 >
                   <div
-                    class="h-full bg-(--accent-green) rounded video-progress pointer-events-none"
+                    class="h-full bg-(--accent-green) rounded media-progress pointer-events-none"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div
+              v-else-if="isAudio(item.mime_type)"
+              class="w-full h-full relative group/media flex flex-col items-center justify-center p-4 bg-(--bg-primary) overflow-hidden"
+            >
+              <audio
+                :src="`/media/${item.filename}`"
+                preload="metadata"
+                @timeupdate="onMediaTimeUpdate($event)"
+                @ended="onMediaEnded($event)"
+              ></audio>
+              <div
+                class="w-12 h-12 rounded-full text-(--accent-green-bright) flex items-center justify-center mb-3 shadow-md"
+              >
+                <Icon
+                  icon="lucide:music"
+                  class="w-10 h-10 text-(--text-muted)"
+                />
+              </div>
+              <div
+                class="w-full flex items-center gap-2 font-mono text-[10px] text-(--text-primary)"
+              >
+                <button
+                  type="button"
+                  @click.stop="toggleMediaPlay($event)"
+                  class="text-(--accent-green) hover:text-(--accent-green-bright) p-1 rounded-full bg-(--bg-surface) border border-(--border-subtle)"
+                  aria-label="Play/Pause Audio"
+                >
+                  <Icon
+                    icon="lucide:play"
+                    class="w-3.5 h-3.5 play-icon fill-current"
+                  />
+                  <Icon
+                    icon="lucide:pause"
+                    class="w-3.5 h-3.5 pause-icon hidden fill-current"
+                  />
+                </button>
+                <div
+                  class="flex-1 h-1.5 bg-(--border-subtle) rounded cursor-pointer relative hover:h-2 transition-all"
+                  @click.stop="seekMedia($event)"
+                >
+                  <div
+                    class="h-full bg-(--accent-green) rounded media-progress pointer-events-none"
                     style="width: 0%"
                   ></div>
                 </div>

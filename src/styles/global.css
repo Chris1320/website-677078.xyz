@@ -245,23 +245,65 @@
   opacity: 1;
 }
 
-.markdown-body .video-control-btn {
+.markdown-body .obsidian-audio-wrapper {
+  margin: 1.25rem 0;
+  border: 1px solid var(--border-main);
+  background: var(--bg-surface-elevated);
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono);
+  max-width: 100%;
+}
+
+.markdown-body .audio-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.markdown-body .video-control-btn,
+.markdown-body .audio-control-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem;
   color: var(--accent-green);
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
-.markdown-body .video-control-btn:hover {
+.markdown-body .audio-control-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-highlight);
+  background: var(--bg-surface);
   color: var(--accent-green-bright);
+  flex-shrink: 0;
 }
 
-.markdown-body .video-timeline {
+.markdown-body .video-control-btn:hover,
+.markdown-body .audio-control-btn:hover {
+  color: var(--accent-green-bright);
+  transform: scale(1.08);
+}
+
+.markdown-body .audio-track-info {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.markdown-body .video-timeline,
+.markdown-body .audio-timeline {
   flex: 1;
   height: 6px;
   background: rgba(255, 255, 255, 0.25);
@@ -271,11 +313,17 @@
   transition: height 0.15s ease;
 }
 
-.markdown-body .video-timeline:hover {
+.markdown-body .audio-timeline {
+  background: var(--border-subtle);
+}
+
+.markdown-body .video-timeline:hover,
+.markdown-body .audio-timeline:hover {
   height: 8px;
 }
 
-.markdown-body .video-progress {
+.markdown-body .video-progress,
+.markdown-body .audio-progress {
   height: 100%;
   width: 0%;
   background: var(--accent-green);
@@ -284,9 +332,10 @@
   transition: width 0.05s linear;
 }
 
-.markdown-body .video-time {
+.markdown-body .video-time,
+.markdown-body .audio-time {
   font-size: 0.7rem;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 

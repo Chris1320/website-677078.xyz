@@ -34,7 +34,22 @@ describe("Markdown Engine", () => {
     expect(html).toContain("video-play-overlay");
     expect(html).toContain("video-controls-bar");
     expect(html).toContain("video-timeline");
-    expect(html).not.toContain('<video src="/media/demo-recording-456.mp4" controls');
+    expect(html).not.toContain(
+      '<video src="/media/demo-recording-456.mp4" controls',
+    );
+  });
+
+  it("render audio embeds", async () => {
+    const md = "Podcast audio:\n\n![[episode-101.mp3]]";
+    const html = await renderMarkdown(md);
+    expect(html).toContain("obsidian-audio-wrapper");
+    expect(html).toContain(
+      '<audio src="/media/episode-101.mp3" class="obsidian-embed obsidian-audio hidden"',
+    );
+    expect(html).toContain("audio-controls-bar");
+    expect(html).toContain("audio-timeline");
+    expect(html).toContain("audio-progress");
+    expect(html).toContain("episode-101.mp3");
   });
 
   it("renders callout blocks", async () => {
