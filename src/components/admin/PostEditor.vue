@@ -5,6 +5,7 @@ import { Icon } from "@iconify/vue";
 import type { PostItem } from "./PostList.vue";
 import { formatDate, slugify } from "../../lib/utils";
 import { findTrueOrphans, pruneOrphanFiles } from "../../lib/media";
+import { extractMediaReferences } from "../../lib/markdown";
 
 const props = defineProps<{
   initialPost?: PostItem | null;
@@ -206,32 +207,8 @@ function handleFileInputChange(e: Event) {
   target.value = "";
 }
 
-function extractRefs(markdown: string): string[] {
-  const references = new Set<string>();
-  if (!markdown) return [];
-  const obsidianEmbedRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-  let match: RegExpExecArray | null;
-  while ((match = obsidianEmbedRegex.exec(markdown)) !== null) {
-    const filename = match[1].trim();
-    if (filename) references.add(filename);
-  }
-  const markdownImgRegex =
-    /!\[.*?\]\((?:(?:\/media\/)|(?:media\/))?([^\s\)]+)\)/g;
-  while ((match = markdownImgRegex.exec(markdown)) !== null) {
-    const filename = match[1].trim();
-    if (
-      filename &&
-      !filename.startsWith("http://") &&
-      !filename.startsWith("https://")
-    ) {
-      references.add(filename);
-    }
-  }
-  return Array.from(references);
-}
-
 const initialMediaRefs = ref<string[]>(
-  extractRefs(props.initialPost?.content || ""),
+  extractMediaReferences(props.initialPost?.content || ""),
 );
 const showOrphanModal = ref(false);
 const showPublishedDateModal = ref(false);
@@ -248,7 +225,7 @@ async function savePost(publishStatus: "draft" | "published") {
   pendingPublishStatus.value = publishStatus;
 
   if (isEditing.value) {
-    const currentRefs = extractRefs(content.value);
+    const currentRefs = extractMediaReferences(content.value);
     const removed = initialMediaRefs.value.filter(
       (r) => !currentRefs.includes(r),
     );
@@ -338,7 +315,7 @@ async function executeSave(
     postId.value = data.post.id;
     slug.value = data.post.slug;
     publishedAt.value = data.post.published_at;
-    initialMediaRefs.value = extractRefs(content.value);
+    initialMediaRefs.value = extractMediaReferences(content.value);
 
     successMessage.value =
       publishStatus === "published"

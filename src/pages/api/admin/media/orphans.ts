@@ -117,8 +117,18 @@ export const POST: APIRoute = async (context) => {
     const db = getDb();
     const bucket = getMediaBucket();
 
-    const body = (await context.request.json()) as any;
+    let body: any = {};
+    try {
+      body = await context.request.json();
+    } catch {
+      // Body may be empty on DELETE requests
+    }
+
     const { filenames = [], allOrphans = false } = body || {};
+    const isDeleteAll =
+      allOrphans ||
+      (context.request.method === "DELETE" &&
+        (!filenames || filenames.length === 0));
 
     // Scan all posts to verify which files are really unreferenced
     const allPosts = await db
@@ -129,21 +139,26 @@ export const POST: APIRoute = async (context) => {
     for (const post of allPosts) {
       const refs = extractMediaReferences(post.content);
       for (const ref of refs) {
-        activeReferences.add(ref);
+        activeReferences.add(ref.trim());
       }
     }
 
     const allMedia = await db.select().from(media).all();
 
     let targetMedia: typeof allMedia = [];
-    if (allOrphans) {
-      targetMedia = allMedia.filter((m) => !activeReferences.has(m.filename));
+    if (isDeleteAll) {
+      targetMedia = allMedia.filter(
+        (m) => !activeReferences.has(m.filename.trim()),
+      );
     } else if (Array.isArray(filenames) && filenames.length > 0) {
-      const requestedSet = new Set(filenames);
+      const requestedSet = new Set(
+        filenames.map((f: string) => f.replace(/^\/?media\//, "").trim()),
+      );
       // prevent deleting files that are currently in use
       targetMedia = allMedia.filter(
         (m) =>
-          requestedSet.has(m.filename) && !activeReferences.has(m.filename),
+          requestedSet.has(m.filename.trim()) &&
+          !activeReferences.has(m.filename.trim()),
       );
     }
 
@@ -167,14 +182,14 @@ export const POST: APIRoute = async (context) => {
     for (const asset of targetMedia) {
       try {
         await bucket.delete(asset.filename);
-        deletedFilenames.push(asset.filename);
-        mediaIdsToDelete.push(asset.id);
       } catch (delErr) {
         console.error(
           `Failed to delete ${asset.filename} from object store:`,
           delErr,
         );
       }
+      deletedFilenames.push(asset.filename);
+      mediaIdsToDelete.push(asset.id);
     }
 
     if (mediaIdsToDelete.length > 0) {
@@ -204,3 +219,5 @@ export const POST: APIRoute = async (context) => {
     );
   }
 };
+
+export const DELETE: APIRoute = POST;
