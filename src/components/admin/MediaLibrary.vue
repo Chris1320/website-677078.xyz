@@ -601,7 +601,7 @@ onMounted(() => {
                 @ended="onMediaEnded($event)"
               ></audio>
               <div
-                class="w-12 h-12 rounded-full text-(--accent-green-bright) flex items-center justify-center mb-3 shadow-md"
+                class="w-12 h-12 rounded-full text-(--accent-green-bright) flex items-center justify-center mb-3"
               >
                 <Icon
                   icon="lucide:music"
