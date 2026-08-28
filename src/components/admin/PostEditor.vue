@@ -236,8 +236,9 @@ const showOrphanModal = ref(false);
 const showPublishedDateModal = ref(false);
 const pendingPublishStatus = ref<"draft" | "published">("draft");
 const orphanedFilesToPrompt = ref<string[]>([]);
+const pendingDeleteOrphans = ref(false);
 
-function savePost(publishStatus: "draft" | "published") {
+async function savePost(publishStatus: "draft" | "published") {
   if (!title.value.trim()) {
     errorMessage.value = "Please enter a post title.";
     return;
@@ -251,9 +252,38 @@ function savePost(publishStatus: "draft" | "published") {
       (r) => !currentRefs.includes(r),
     );
     if (removed.length > 0) {
-      orphanedFilesToPrompt.value = removed;
-      showOrphanModal.value = true;
-      return;
+      try {
+        isSaving.value = true;
+        const res = await fetch("/api/admin/media/orphans");
+        if (res.ok) {
+          const data: any = await res.json();
+          const mediaList: any[] = data.media || [];
+
+          // Only prompt for files that will have 0 references once removed from this post
+          const trueOrphans = removed.filter((filename) => {
+            const mediaItem = mediaList.find((m) => m.filename === filename);
+            if (!mediaItem) return false;
+            const otherRefs = (mediaItem.referenced_in || []).filter(
+              (p: any) => p.id !== postId.value,
+            );
+            return otherRefs.length === 0;
+          });
+
+          if (trueOrphans.length > 0) {
+            orphanedFilesToPrompt.value = trueOrphans;
+            showOrphanModal.value = true;
+            isSaving.value = false;
+            return;
+          }
+        }
+      } catch (err) {
+        console.error(
+          "Failed to verify orphan status against other posts:",
+          err,
+        );
+      } finally {
+        isSaving.value = false;
+      }
     }
   }
 
@@ -273,21 +303,10 @@ function proceedAfterOrphanCheck() {
   executeSave(pendingPublishStatus.value, false);
 }
 
-async function confirmSaveWithOrphanChoice(deleteOrphans: boolean) {
+function confirmSaveWithOrphanChoice(deleteOrphans: boolean) {
   showOrphanModal.value = false;
-  if (deleteOrphans && orphanedFilesToPrompt.value.length > 0) {
-    try {
-      await fetch("/api/admin/media/orphans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filenames: orphanedFilesToPrompt.value }),
-      });
-    } catch (delErr) {
-      console.error("Failed to delete orphans:", delErr);
-    }
-  }
+  pendingDeleteOrphans.value = deleteOrphans;
   proceedAfterOrphanCheck();
-  initialMediaRefs.value = extractRefs(content.value);
 }
 
 async function confirmPublishedDateChoice(updatePublishedDate: boolean) {
@@ -328,6 +347,21 @@ async function executeSave(
     const data: any = await res.json();
     if (!res.ok) {
       throw new Error(data.error || "Failed to save post");
+    }
+
+    if (pendingDeleteOrphans.value && orphanedFilesToPrompt.value.length > 0) {
+      try {
+        await fetch("/api/admin/media/orphans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filenames: orphanedFilesToPrompt.value }),
+        });
+      } catch (delErr) {
+        console.error("Failed to delete orphans:", delErr);
+      } finally {
+        pendingDeleteOrphans.value = false;
+        orphanedFilesToPrompt.value = [];
+      }
     }
 
     status.value = publishStatus;
