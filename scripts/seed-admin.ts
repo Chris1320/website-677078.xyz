@@ -53,7 +53,7 @@ async function main() {
   const passwordHash = await hashPassword(password);
   const now = Date.now();
 
-  const sql = `INSERT INTO users (id, username, password_hash, totp_secret, totp_enabled, created_at, updated_at) VALUES ('${userId}', '${username.replace(/'/g, "''")}', '${passwordHash}', NULL, 0, ${now}, ${now});`;
+  const sql = `INSERT INTO users (id, username, password_hash, totp_secret, totp_enabled, created_at, updated_at) VALUES ('${userId}', '${username.replace(/'/g, "''")}', '${passwordHash}', NULL, 0, ${now}, ${now}) ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash, totp_secret = NULL, totp_enabled = 0, updated_at = excluded.updated_at;`;
 
   console.log("----------------------------------------");
   console.log("Generated Admin Seed SQL Statement:");
@@ -78,7 +78,7 @@ async function main() {
     console.log("Executing against remote D1 database...");
     const res = spawnSync(
       "wrangler",
-      ["d1", "execute", "website_677078_xyz_db", `--command=${sql}`],
+      ["d1", "execute", "website-677078_xyz", "--remote", `--command=${sql}`],
       { stdio: "inherit" },
     );
     if (res.status !== 0) {
