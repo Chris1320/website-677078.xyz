@@ -542,6 +542,66 @@ export function extractMediaReferences(markdown: string): string[] {
 }
 
 /**
+ * Safely replaces all references of oldFilename with newFilename in markdown content.
+ */
+export function replaceMediaReferences(
+  markdown: string,
+  oldFilename: string,
+  newFilename: string,
+): string {
+  if (
+    !markdown ||
+    !oldFilename ||
+    !newFilename ||
+    oldFilename === newFilename
+  ) {
+    return markdown;
+  }
+
+  // Escape special regex characters in the filenames
+  const escapeRegExp = (str: string) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedOld = escapeRegExp(oldFilename.trim());
+  const targetNew = newFilename.trim();
+
+  // Obsidian Embeds (`![[oldFilename]]` or `![[oldFilename|extra]]`)
+  const obsidianEmbedRegex = new RegExp(
+    `!\\[\\[\\s*${escapedOld}(?:\\s*\\|\\s*([^\\]]*))?\\s*\\]\\]`,
+    "g",
+  );
+  let updated = markdown.replace(obsidianEmbedRegex, (_, extra) => {
+    return extra !== undefined
+      ? `![[${targetNew}|${extra}]]`
+      : `![[${targetNew}]]`;
+  });
+
+  // Obsidian Links (`[[oldFilename]]` or `[[oldFilename|extra]]` )
+  const obsidianLinkRegex = new RegExp(
+    `(?<!!)\\[\\[\\s*${escapedOld}(?:\\s*\\|\\s*([^\\]]*))?\\s*\\]\\]`,
+    "g",
+  );
+  updated = updated.replace(obsidianLinkRegex, (_, extra) => {
+    return extra !== undefined
+      ? `[[${targetNew}|${extra}]]`
+      : `[[${targetNew}]]`;
+  });
+
+  // Standard Markdown Images/Links: (`![alt](/media/oldFilename)` or `[text](/media/oldFilename)`)
+  const markdownImgLinkRegex = new RegExp(
+    `(\\[[^\\]]*\\]\\()(?:\\/media\\/|media\\/)?${escapedOld}(\\s*(?:["'][^)]*["'])?\\))`,
+    "g",
+  );
+  updated = updated.replace(markdownImgLinkRegex, (match, prefix, suffix) => {
+    const hasMediaPrefix =
+      match.includes("/media/") || match.includes("media/");
+    const targetPath = hasMediaPrefix ? `/media/${targetNew}` : targetNew;
+    return `${prefix}${targetPath}${suffix}`;
+  });
+
+  return updated;
+}
+
+/**
  * Estimate reading time in minutes
  */
 export function calculateReadingTime(content: string): number {

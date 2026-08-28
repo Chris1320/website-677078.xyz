@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import {
   renderMarkdown,
   extractMediaReferences,
+  replaceMediaReferences,
   calculateReadingTime,
 } from "../src/lib/markdown";
 
@@ -183,5 +184,43 @@ See [[another-post#Architecture|Architecture Section]] and [[#Local Heading|Loca
 
     const longText = new Array(500).fill("word").join(" ");
     expect(calculateReadingTime(longText)).toBe(3);
+  });
+
+  it("replaces media references across Wikilinks and markdown syntax", () => {
+    const sample = `
+# Sample Article
+
+![[old-photo.jpg]]
+![[old-photo.jpg|300]]
+![[old-photo.jpg|Alt Text]]
+[[old-photo.jpg]]
+[[old-photo.jpg|Alias Name]]
+![Standard](/media/old-photo.jpg)
+![Relative](old-photo.jpg)
+[Download Attachment](/media/old-photo.jpg)
+
+Do not touch:
+![[old-photo.jpg_backup.png]]
+old-photo.jpg in plain text
+    `.trim();
+
+    const replaced = replaceMediaReferences(
+      sample,
+      "old-photo.jpg",
+      "new-banner.jpg",
+    );
+
+    expect(replaced).toContain("![[new-banner.jpg]]");
+    expect(replaced).toContain("![[new-banner.jpg|300]]");
+    expect(replaced).toContain("![[new-banner.jpg|Alt Text]]");
+    expect(replaced).toContain("[[new-banner.jpg]]");
+    expect(replaced).toContain("[[new-banner.jpg|Alias Name]]");
+    expect(replaced).toContain("![Standard](/media/new-banner.jpg)");
+    expect(replaced).toContain("![Relative](new-banner.jpg)");
+    expect(replaced).toContain("[Download Attachment](/media/new-banner.jpg)");
+
+    // Ensure untouched text was not corrupted
+    expect(replaced).toContain("![[old-photo.jpg_backup.png]]");
+    expect(replaced).toContain("old-photo.jpg in plain text");
   });
 });

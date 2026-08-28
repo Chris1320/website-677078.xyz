@@ -49,6 +49,11 @@ const currentPage = ref(1);
 
 const inspectingMedia = ref<MediaUsageItem | null>(null);
 
+const assetToRename = ref<MediaUsageItem | null>(null);
+const newFilenameInput = ref("");
+const isRenamingAsset = ref(false);
+const renameError = ref("");
+
 const assetToDelete = ref<MediaUsageItem | null>(null);
 const isDeletingAsset = ref(false);
 const showPruneModal = ref(false);
@@ -322,6 +327,59 @@ async function confirmDeleteSingleAsset() {
     errorMessage.value = err.message;
   } finally {
     isDeletingAsset.value = false;
+  }
+}
+
+function promptRenameAsset(item: MediaUsageItem) {
+  assetToRename.value = item;
+  newFilenameInput.value = item.filename;
+  renameError.value = "";
+}
+
+function cancelRenameAsset() {
+  if (isRenamingAsset.value) return;
+  assetToRename.value = null;
+  newFilenameInput.value = "";
+  renameError.value = "";
+}
+
+async function confirmRenameAsset() {
+  if (!assetToRename.value || !newFilenameInput.value.trim()) return;
+
+  isRenamingAsset.value = true;
+  renameError.value = "";
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const res = await fetch(`/api/admin/media/${assetToRename.value.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newFilename: newFilenameInput.value.trim() }),
+    });
+    const data: any = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to rename media asset");
+    }
+
+    const updatedPosts = data.updatedPostsCount || 0;
+    successMessage.value = `Asset renamed to "${data.asset.filename}". ${
+      updatedPosts > 0
+        ? `Automatically updated Wikilinks in ${updatedPosts} post(s).`
+        : ""
+    }`;
+
+    if (inspectingMedia.value?.id === assetToRename.value.id) {
+      inspectingMedia.value.filename = data.asset.filename;
+      inspectingMedia.value.mime_type = data.asset.mime_type;
+    }
+
+    assetToRename.value = null;
+    await fetchMedia();
+  } catch (err: any) {
+    renameError.value = err.message || "Failed to rename asset";
+  } finally {
+    isRenamingAsset.value = false;
   }
 }
 
@@ -818,6 +876,14 @@ onMounted(() => {
                 copiedFilename === `embed-${item.id}` ? "Copied" : "Copy Embed"
               }}</span>
             </button>
+            <button
+              type="button"
+              @click="promptRenameAsset(item)"
+              class="p-1.5 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) inline-flex items-center"
+              title="Rename Asset"
+            >
+              <Icon icon="lucide:pencil" class="w-3.5 h-3.5" />
+            </button>
             <a
               :href="`/media/${item.filename}`"
               target="_blank"
@@ -1011,11 +1077,24 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        <div class="flex justify-end pt-2 border-t border-(--border-subtle)">
+        <div
+          class="flex items-center justify-between pt-2 border-t border-(--border-subtle)"
+        >
+          <button
+            type="button"
+            @click="
+              promptRenameAsset(inspectingMedia);
+              closeInspectModal();
+            "
+            class="px-3 py-1.5 border border-(--border-main) text-(--accent-green) hover:border-(--accent-green) hover:bg-(--accent-green-glow) transition-colors font-mono text-xs inline-flex items-center gap-1.5"
+          >
+            <Icon icon="lucide:pencil" class="w-3.5 h-3.5" />
+            <span>Rename Asset</span>
+          </button>
           <button
             type="button"
             @click="closeInspectModal"
-            class="px-4 py-2 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors font-mono text-xs"
+            class="px-4 py-1.5 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors font-mono text-xs"
           >
             Close
           </button>
@@ -1250,6 +1329,133 @@ onMounted(() => {
             }}</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      v-if="assetToRename"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-(--modal-overlay-bg) p-4 font-mono text-xs"
+    >
+      <div
+        class="max-w-lg w-full border border-(--border-highlight) bg-(--bg-surface) p-6 space-y-5 shadow-2xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-(--border-subtle) pb-3"
+        >
+          <div
+            class="flex items-center gap-2 text-(--accent-green-bright) font-bold text-sm"
+          >
+            <Icon icon="lucide:pencil" class="w-4 h-4" />
+            <span>// RENAME_MEDIA_ASSET</span>
+          </div>
+          <button
+            type="button"
+            @click="cancelRenameAsset"
+            :disabled="isRenamingAsset"
+            class="text-(--text-muted) hover:text-(--text-primary)"
+          >
+            [✕]
+          </button>
+        </div>
+        <div
+          class="p-3 border border-(--border-subtle) bg-(--bg-primary) flex items-center gap-3"
+        >
+          <div
+            class="w-12 h-12 bg-(--bg-surface-elevated) border border-(--border-subtle) flex items-center justify-center shrink-0 overflow-hidden"
+          >
+            <img
+              v-if="isImage(assetToRename.mime_type)"
+              :src="`/media/${assetToRename.filename}`"
+              :alt="assetToRename.filename"
+              class="w-full h-full object-contain"
+            />
+            <div
+              v-else-if="isVideo(assetToRename.mime_type)"
+              class="text-(--accent-green)"
+            >
+              <Icon icon="lucide:video" class="w-6 h-6" />
+            </div>
+            <div
+              v-else-if="isAudio(assetToRename.mime_type)"
+              class="text-(--accent-green)"
+            >
+              <Icon icon="lucide:music" class="w-6 h-6" />
+            </div>
+            <Icon
+              v-else
+              icon="lucide:file"
+              class="w-6 h-6 text-(--text-muted)"
+            />
+          </div>
+          <div class="min-w-0 flex-1 space-y-0.5">
+            <div class="text-[10px] text-(--text-muted) uppercase">
+              Current Filename:
+            </div>
+            <div class="font-bold text-(--text-primary) truncate">
+              {{ assetToRename.filename }}
+            </div>
+          </div>
+        </div>
+        <form @submit.prevent="confirmRenameAsset" class="space-y-4">
+          <div class="space-y-1.5">
+            <label
+              class="block text-xs uppercase text-(--text-secondary) font-bold"
+            >
+              New Filename:
+            </label>
+            <input
+              v-model="newFilenameInput"
+              type="text"
+              required
+              class="w-full px-3 py-2 bg-(--bg-surface-elevated) border border-(--border-main) text-(--text-primary) focus:outline-none focus:border-(--accent-green) font-mono text-sm"
+              placeholder="e.g. new-image-name.png"
+            />
+          </div>
+          <div
+            v-if="assetToRename.referenced_in.length > 0"
+            class="p-3 border border-(--accent-green)/40 bg-(--accent-green-glow) text-(--text-primary) text-[11px] space-y-1"
+          >
+            <div class="font-bold text-(--accent-green)">
+              > Wikilinks will be updated
+            </div>
+            <div class="text-(--text-secondary)">
+              Wikilinks and image markdown in
+              {{ assetToRename.referenced_in.length }} referenced post(s) will
+              be automatically updated to the new filename.
+            </div>
+          </div>
+          <div
+            v-if="renameError"
+            class="p-3 border border-(--status-error-border) bg-(--status-error-bg) text-(--status-error-text) text-xs"
+          >
+            > ERROR: {{ renameError }}
+          </div>
+          <div
+            class="flex items-center justify-end gap-3 pt-3 border-t border-(--border-subtle)"
+          >
+            <button
+              type="button"
+              @click="cancelRenameAsset"
+              :disabled="isRenamingAsset"
+              class="px-4 py-2 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              :disabled="isRenamingAsset || !newFilenameInput.trim()"
+              class="px-4 py-2 bg-(--accent-green) hover:bg-(--accent-green-bright) text-(--text-inverse) font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <Icon
+                :icon="isRenamingAsset ? 'lucide:rotate-cw' : 'lucide:check'"
+                :class="['w-3.5 h-3.5', isRenamingAsset ? 'animate-spin' : '']"
+              />
+              <span>{{
+                isRenamingAsset ? "Renaming..." : "Rename Asset"
+              }}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
