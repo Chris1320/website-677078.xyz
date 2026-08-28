@@ -193,7 +193,11 @@ export const POST: APIRoute = async (context) => {
     }
 
     if (mediaIdsToDelete.length > 0) {
-      await db.delete(media).where(inArray(media.id, mediaIdsToDelete));
+      const CHUNK_SIZE = 50;
+      for (let i = 0; i < mediaIdsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = mediaIdsToDelete.slice(i, i + CHUNK_SIZE);
+        await db.delete(media).where(inArray(media.id, chunk));
+      }
     }
 
     return new Response(
