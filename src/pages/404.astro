@@ -1,0 +1,55 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+import AsciiTitle from '../components/AsciiTitle.astro';
+
+import { Icon } from 'astro-icon/components';
+
+export const prerender = false;
+---
+
+<Layout
+  title="404: Page Not Found | CFN"
+  description="The requested page could not be located."
+>
+  <div class="content space-y-8">
+    <AsciiTitle />
+    <section class="border border-(--border-main) bg-(--bg-surface) p-8 sm:p-12 space-y-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+        <pre class="font-mono text-base text-(--accent-green) select-none leading-tight p-4">
+┌─────────┐
+│  O   o  │
+│   ---   │
+└─────────┘</pre>
+        <div class="space-y-2 font-mono">
+          <div class="text-xs uppercase tracking-wider font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-block">
+            HTTP_STATUS_404 // NOT_FOUND
+          </div>
+          <h1 class="text-xl sm:text-2xl font-bold text-(--text-primary)">
+            Uhh... What?
+          </h1>
+          <p class="text-xs sm:text-sm text-(--text-secondary) leading-relaxed">
+            The thing you're looking for was not found on this server.
+            It may have been moved, unpublished, or never created.
+          </p>
+        </div>
+      </div>
+      <div class="pt-6 border-t border-(--border-subtle) flex flex-wrap items-center gap-3">
+        <a
+          href="/"
+          class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5"
+        >
+          <Icon name="lucide:home" class="w-3.5 h-3.5" />
+          <span>Return to Home</span>
+        </a>
+        <a
+          class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-(--accent-yellow) text-(--text-inverse) hover:bg-(--accent-yellow-bright) transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+          onclick="history.back()"
+          >
+          <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
+          <span>Back to Previous Page</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</Layout>
