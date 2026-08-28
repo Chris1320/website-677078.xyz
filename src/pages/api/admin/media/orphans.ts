@@ -125,10 +125,21 @@ export const POST: APIRoute = async (context) => {
     }
 
     const { filenames = [], allOrphans = false } = body || {};
-    const isDeleteAll =
-      allOrphans ||
-      (context.request.method === "DELETE" &&
-        (!filenames || filenames.length === 0));
+
+    if (!allOrphans && (!Array.isArray(filenames) || filenames.length === 0)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Must specify a non-empty filenames array or set allOrphans: true to confirm bulk deletion.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const isDeleteAll = allOrphans === true;
 
     // Scan all posts to verify which files are really unreferenced
     const allPosts = await db

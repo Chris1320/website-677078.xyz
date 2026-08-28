@@ -104,17 +104,28 @@ export const PATCH: APIRoute = async (context) => {
     }
 
     // Rename in object store
+    const oldObj = await bucket.get(currentFilename);
+    if (!oldObj) {
+      return new Response(
+        JSON.stringify({ error: "Source file not found in storage bucket." }),
+        { status: 404, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     try {
-      const oldObj = await bucket.get(currentFilename);
-      if (oldObj) {
-        await bucket.put(cleanNewFilename, oldObj.body, {
-          httpMetadata: oldObj.httpMetadata,
-          customMetadata: oldObj.customMetadata,
-        });
-        await bucket.delete(currentFilename);
-      }
-    } catch (bucketErr) {
+      await bucket.put(cleanNewFilename, oldObj.body, {
+        httpMetadata: oldObj.httpMetadata,
+        customMetadata: oldObj.customMetadata,
+      });
+      await bucket.delete(currentFilename);
+    } catch (bucketErr: any) {
       console.error("Failed to copy/delete asset in bucket:", bucketErr);
+      return new Response(
+        JSON.stringify({
+          error: `Failed to rename asset in storage bucket: ${bucketErr?.message || "Storage error"}`,
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
     }
 
     const newMimeType =
