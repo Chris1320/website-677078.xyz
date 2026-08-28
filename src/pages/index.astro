@@ -1,15 +1,311 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import AsciiTitle from '../components/AsciiTitle.astro';
-import WorkInProgress from '../components/WorkInProgress.astro';
+import { Icon } from 'astro-icon/components';
+import { eq, desc, count, countDistinct } from 'drizzle-orm';
+import { getDb, posts, tags, post_tags } from '../db';
+import { calculateReadingTime } from '../lib/markdown';
+
+export const prerender = false;
+
+let publishedCount = 0;
+let tagsCount = 0;
+let latestPostDate = '—';
+let latestPostTitle = '';
+let latestPostSlug = '';
+let recentPosts: any[] = [];
+
+try {
+  const db = getDb();
+
+  // 1. Query published post count
+  const postCountRes = await db
+    .select({ count: count() })
+    .from(posts)
+    .where(eq(posts.status, 'published'))
+    .get();
+
+  if (postCountRes) {
+    publishedCount = postCountRes.count || 0;
+  }
+
+  // 2. Query distinct active tags count on published posts
+  const tagsCountRes = await db
+    .select({ count: countDistinct(post_tags.tag_id) })
+    .from(post_tags)
+    .innerJoin(posts, eq(post_tags.post_id, posts.id))
+    .where(eq(posts.status, 'published'))
+    .get();
+
+  if (tagsCountRes) {
+    tagsCount = tagsCountRes.count || 0;
+  }
+
+  // 3. Query the latest 5 published posts
+  const latestPublishedPosts = await db
+    .select({
+      id: posts.id,
+      slug: posts.slug,
+      title: posts.title,
+      description: posts.description,
+      content: posts.content,
+      published_at: posts.published_at,
+      created_at: posts.created_at,
+    })
+    .from(posts)
+    .where(eq(posts.status, 'published'))
+    .orderBy(desc(posts.published_at), desc(posts.created_at))
+    .limit(5)
+    .all();
+
+  if (latestPublishedPosts.length > 0) {
+    const first = latestPublishedPosts[0];
+    latestPostTitle = first.title;
+    latestPostSlug = first.slug;
+    const ts = first.published_at || first.created_at;
+    if (ts) {
+      const date = typeof ts === 'number' ? new Date(ts) : ts;
+      latestPostDate = date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    }
+
+    // 4. Fetch tags for the latest 5 posts
+    const postIds = latestPublishedPosts.map((p) => p.id);
+    const relatedTags = await db
+      .select({
+        post_id: post_tags.post_id,
+        tag_id: tags.id,
+        tag_name: tags.name,
+        tag_slug: tags.slug,
+      })
+      .from(post_tags)
+      .innerJoin(tags, eq(post_tags.tag_id, tags.id))
+      .all();
+
+    const tagsByPostId: Record<string, { id: string; name: string; slug: string }[]> = {};
+    for (const pt of relatedTags) {
+      if (!tagsByPostId[pt.post_id]) {
+        tagsByPostId[pt.post_id] = [];
+      }
+      tagsByPostId[pt.post_id].push({
+        id: pt.tag_id,
+        name: pt.tag_name,
+        slug: pt.tag_slug,
+      });
+    }
+
+    recentPosts = latestPublishedPosts.map((p) => ({
+      ...p,
+      tags: tagsByPostId[p.id] || [],
+      readTime: calculateReadingTime(p.content),
+    }));
+  }
+} catch (err) {
+  console.error('Error fetching homepage stats:', err);
+}
+
+function formatDate(timestamp: number | Date | null | undefined) {
+  if (!timestamp) return '';
+  const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 ---
 
 <Layout
-    title="67 70 78 | CFN"
-    description="CFN"
+  title="CFN | 67 70 78"
+  description="Security research, distributed systems, and technical publications."
 >
-    <div class="content">
-        <AsciiTitle />
-        <WorkInProgress />
-    </div>
+  <div class="content space-y-8">
+    <AsciiTitle />
+
+    <!-- Three-Column Stats Section -->
+    <section class="border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 sm:p-8 space-y-6">
+      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <div class="flex items-center gap-2">
+          <Icon name="lucide:activity" class="w-4 h-4 text-[var(--accent-green)]" />
+          <span class="text-xs uppercase tracking-widest text-[var(--accent-green)] font-mono font-bold">
+            // TELEMETRY // SYSTEM_METRICS
+          </span>
+        </div>
+        <span class="text-[11px] font-mono text-[var(--text-muted)]">
+          NODE: 677078.XYZ
+        </span>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Stat 1: Published Posts -->
+        <div class="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-5 space-y-2 hover:border-[var(--border-highlight)] transition-colors">
+          <div class="flex items-center justify-between text-[var(--text-secondary)]">
+            <span class="text-[11px] uppercase tracking-wider font-mono">
+              Published Posts
+            </span>
+            <Icon name="lucide:book-open" class="w-4 h-4 text-[var(--accent-green)]" />
+          </div>
+          <div class="text-2xl sm:text-3xl font-bold font-mono text-[var(--text-primary)]">
+            {publishedCount}
+          </div>
+          <div class="text-[11px] font-mono text-[var(--text-muted)]">
+            {publishedCount === 1 ? '1 published article' : `${publishedCount} published articles`}
+          </div>
+        </div>
+
+        <!-- Stat 2: Active Topics / Tags -->
+        <div class="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-5 space-y-2 hover:border-[var(--border-highlight)] transition-colors">
+          <div class="flex items-center justify-between text-[var(--text-secondary)]">
+            <span class="text-[11px] uppercase tracking-wider font-mono">
+              Active Topics
+            </span>
+            <Icon name="lucide:tags" class="w-4 h-4 text-[var(--accent-green)]" />
+          </div>
+          <div class="text-2xl sm:text-3xl font-bold font-mono text-[var(--text-primary)]">
+            {tagsCount}
+          </div>
+          <div class="text-[11px] font-mono text-[var(--text-muted)]">
+            {tagsCount === 1 ? '1 indexed topic' : `${tagsCount} indexed topics`}
+          </div>
+        </div>
+
+        <!-- Stat 3: Latest Post -->
+        <div class="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-5 space-y-2 hover:border-[var(--border-highlight)] transition-colors">
+          <div class="flex items-center justify-between text-[var(--text-secondary)]">
+            <span class="text-[11px] uppercase tracking-wider font-mono">
+              Latest Release
+            </span>
+            <Icon name="lucide:calendar" class="w-4 h-4 text-[var(--accent-green)]" />
+          </div>
+          <div class="text-lg sm:text-xl font-bold font-mono text-[var(--text-primary)] truncate" title={latestPostDate}>
+            {latestPostDate}
+          </div>
+          <div class="text-[11px] font-mono text-[var(--text-muted)] truncate" title={latestPostTitle || 'No published posts'}>
+            {latestPostSlug ? (
+              <a href={`/posts/${latestPostSlug}`} class="hover:text-[var(--accent-green)] transition-colors">
+                {latestPostTitle}
+              </a>
+            ) : (
+              'No posts yet'
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Latest 5 Posts Section -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-[var(--border-main)] pb-3">
+        <div class="flex items-center gap-2">
+          <Icon name="lucide:newspaper" class="w-4 h-4 text-[var(--accent-green)]" />
+          <span class="text-xs uppercase tracking-widest text-[var(--accent-green)] font-mono font-bold">
+            // RECENT_PUBLICATIONS // LATEST_5
+          </span>
+        </div>
+        <a
+          href="/posts"
+          class="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent-green-bright)] inline-flex items-center gap-1 transition-colors"
+        >
+          <span>View all posts</span>
+          <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
+        </a>
+      </div>
+
+      {recentPosts.length === 0 ? (
+        <div class="border border-[var(--border-main)] bg-[var(--bg-surface)] p-8 text-center space-y-2">
+          <div class="text-[var(--accent-green)] text-sm font-mono font-bold">
+            > NO_PUBLICATIONS_YET
+          </div>
+          <p class="text-xs text-[var(--text-secondary)]">
+            Articles and research notes will appear here once published.
+          </p>
+        </div>
+      ) : (
+        <div class="divide-y divide-[var(--border-main)] border border-[var(--border-main)] bg-[var(--bg-surface)]">
+          {recentPosts.map((post) => (
+            <article class="p-6 hover:bg-[var(--bg-surface-hover)] transition-colors group">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--text-muted)] mb-2 font-mono">
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center gap-1">
+                    <Icon name="lucide:calendar" class="w-3.5 h-3.5" />
+                    <span>{formatDate(post.published_at || post.created_at)}</span>
+                  </span>
+                  <span>•</span>
+                  <span class="inline-flex items-center gap-1">
+                    <Icon name="lucide:clock" class="w-3.5 h-3.5" />
+                    <span>{post.readTime} min read</span>
+                  </span>
+                </div>
+                {post.tags && post.tags.length > 0 && (
+                  <div class="flex flex-wrap gap-1.5">
+                    {post.tags.map((tag: any) => (
+                      <a
+                        href={`/posts?tag=${tag.slug}`}
+                        class="px-1.5 py-0.5 text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-green-bright)] hover:border-[var(--accent-green)] transition-colors inline-flex items-center gap-1"
+                      >
+                        #{tag.name}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <h2 class="text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-green-bright)] transition-colors mb-2">
+                <a href={`/posts/${post.slug}`} class="block">
+                  {post.title}
+                </a>
+              </h2>
+
+              {post.description && (
+                <p class="text-xs text-[var(--text-secondary)] leading-relaxed mb-4 line-clamp-2">
+                  {post.description}
+                </p>
+              )}
+
+              <div>
+                <a
+                  href={`/posts/${post.slug}`}
+                  class="text-xs font-mono text-[var(--accent-green)] hover:text-[var(--accent-green-bright)] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform"
+                >
+                  <span>Read Article</span>
+                  <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <!-- Quick Action Navigation Bar -->
+      <div class="pt-2 flex flex-wrap items-center gap-3">
+        <a
+          href="/posts"
+          class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-[var(--accent-green)] text-[var(--text-inverse)] hover:bg-[var(--accent-green-bright)] transition-colors inline-flex items-center gap-1.5 font-mono"
+        >
+          <span>Browse All Posts</span>
+          <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
+        </a>
+
+        <a
+          href="/security"
+          class="px-4 py-2 text-xs uppercase tracking-wider font-mono border border-[var(--border-main)] text-[var(--text-primary)] hover:border-[var(--border-highlight)] hover:bg-[var(--accent-green-glow)] transition-colors inline-flex items-center gap-1.5"
+        >
+          <Icon name="lucide:shield" class="w-3.5 h-3.5" />
+          <span>Security</span>
+        </a>
+
+        <a
+          href="/admin"
+          class="px-4 py-2 text-xs uppercase tracking-wider font-mono border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-main)] transition-colors inline-flex items-center gap-1.5"
+        >
+          <Icon name="lucide:terminal" class="w-3.5 h-3.5" />
+          <span>Admin</span>
+        </a>
+      </div>
+    </section>
+  </div>
 </Layout>
