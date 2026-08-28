@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import { Icon } from "@iconify/vue";
 
 import type { PostItem } from "./PostList.vue";
@@ -45,6 +45,27 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 let slugManuallyEdited = isEditing.value;
+
+watch(
+  () => props.initialPost,
+  (newPost) => {
+    isEditing.value = !!newPost?.id;
+    postId.value = newPost?.id || "";
+    title.value = newPost?.title || "";
+    slug.value = newPost?.slug || "";
+    description.value = newPost?.description || "";
+    content.value = newPost?.content || "";
+    status.value = newPost?.status || "draft";
+    publishedAt.value = newPost?.published_at || null;
+    tags.value = newPost?.tags?.map((t) => t.name) || [];
+    tagInput.value = "";
+    slugManuallyEdited = !!newPost?.id;
+    errorMessage.value = "";
+    successMessage.value = "";
+    fetchPreview();
+  },
+  { immediate: true },
+);
 
 watch(title, (newTitle) => {
   if (!slugManuallyEdited) {
@@ -110,6 +131,13 @@ watch(content, () => {
 
 onMounted(() => {
   fetchPreview();
+});
+
+onUnmounted(() => {
+  if (previewTimeout) {
+    clearTimeout(previewTimeout);
+    previewTimeout = null;
+  }
 });
 
 function insertTextAtCursor(
@@ -725,7 +753,9 @@ async function executeSave(
         </div>
         <span class="text-(--text-secondary) text-[11px] shrink-0 pl-2">
           {{ formatBytes(uploadProgress.loaded) }} /
-          {{ formatBytes(uploadProgress.total) }} ({{ uploadProgress.percent }}%)
+          {{ formatBytes(uploadProgress.total) }} ({{
+            uploadProgress.percent
+          }}%)
         </span>
       </div>
       <div
