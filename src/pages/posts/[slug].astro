@@ -1,0 +1,188 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AsciiTitle from '../../components/AsciiTitle.astro';
+import { Icon } from 'astro-icon/components';
+import { eq } from 'drizzle-orm';
+import { getDb, posts, tags, post_tags } from '../../db';
+import { renderMarkdown, calculateReadingTime } from '../../lib/markdown';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+
+if (!slug) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+let post: any = null;
+let postTags: { id: string; name: string; slug: string }[] = [];
+let renderedHtml = '';
+let isDraft = false;
+
+try {
+  const db = getDb();
+
+  const foundPost = await db
+    .select()
+    .from(posts)
+    .where(eq(posts.slug, slug))
+    .get();
+
+  if (!foundPost) {
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+  }
+
+  isDraft = foundPost.status === 'draft';
+
+  // Guard draft posts
+  if (isDraft) {
+    const isDev = import.meta.env.DEV;
+    const authHeader = Astro.request.headers.get('cf-access-authenticated-user-email');
+    if (!isDev && !authHeader) {
+      return new Response(null, { status: 404, statusText: 'Not Found' });
+    }
+    // Never cache draft responses
+    Astro.response.headers.set('Cache-Control', 'private, no-store');
+  } else {
+    // Edge Cache Control for Public Published Post
+    Astro.response.headers.set(
+      'Cache-Control',
+      'public, max-age=0, s-maxage=86400, stale-while-revalidate=3600'
+    );
+  }
+
+  post = foundPost;
+
+  // Query tags
+  const tagRows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      slug: tags.slug,
+    })
+    .from(post_tags)
+    .innerJoin(tags, eq(post_tags.tag_id, tags.id))
+    .where(eq(post_tags.post_id, post.id))
+    .all();
+
+  postTags = tagRows;
+
+  // Render Obsidian Markdown to HTML
+  renderedHtml = await renderMarkdown(post.content);
+} catch (error) {
+  console.error('Error fetching blog post:', error);
+  return new Response(null, { status: 500, statusText: 'Internal Server Error' });
+}
+
+const readTime = calculateReadingTime(post.content);
+
+function formatDate(timestamp: number | Date | null | undefined) {
+  if (!timestamp) return '';
+  const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+---
+
+<Layout
+  title={`${post.title} | CFN`}
+  description={post.description || post.title}
+>
+  <div class="content space-y-8">
+    <AsciiTitle />
+
+    <!-- Draft Preview Alert -->
+    {isDraft && (
+      <div class="p-3 border border-amber-500 bg-amber-950/40 text-amber-300 text-xs font-mono flex items-center justify-between">
+        <span class="inline-flex items-center gap-2">
+          <Icon name="lucide:alert-triangle" class="w-4 h-4 text-amber-400" />
+          <span>[DRAFT PREVIEW] This post is unpublished and visible only in admin mode.</span>
+        </span>
+        <a href="/admin" class="underline hover:text-amber-100 inline-flex items-center gap-1">
+          <span>Open Admin Editor</span>
+          <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
+        </a>
+      </div>
+    )}
+
+    <!-- Navigation Back Link -->
+    <div class="flex items-center justify-between text-xs font-mono text-[var(--text-muted)] border-b border-[var(--border-main)] pb-3">
+      <a
+        href="/posts"
+        class="text-[var(--accent-green)] hover:text-[var(--accent-green-bright)] inline-flex items-center gap-1.5"
+      >
+        <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
+        <span>Back to all posts</span>
+      </a>
+      <span>// 677078.XYZ/POSTS</span>
+    </div>
+
+    <!-- Article Header -->
+    <header class="space-y-4 border-b border-[var(--border-main)] pb-6">
+      <div class="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)] font-mono">
+        <span class="inline-flex items-center gap-1">
+          <Icon name="lucide:calendar" class="w-3.5 h-3.5" />
+          <span>{formatDate(post.published_at || post.created_at)}</span>
+        </span>
+        <span>•</span>
+        <span class="inline-flex items-center gap-1">
+          <Icon name="lucide:clock" class="w-3.5 h-3.5" />
+          <span>{readTime} min read</span>
+        </span>
+        {isDraft && (
+          <span class="px-2 py-0.5 text-[10px] uppercase font-bold border border-amber-500 text-amber-400 bg-amber-950/40">
+            Draft
+          </span>
+        )}
+      </div>
+
+      <h1 class="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] leading-tight tracking-tight">
+        {post.title}
+      </h1>
+
+      {post.description && (
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed italic border-l-2 border-[var(--accent-green)] pl-3">
+          {post.description}
+        </p>
+      )}
+
+      {postTags.length > 0 && (
+        <div class="flex flex-wrap gap-2 pt-2">
+          {postTags.map((tag) => (
+            <a
+              href={`/posts?tag=${tag.slug}`}
+              class="px-2 py-0.5 text-xs font-mono bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-green-bright)] hover:border-[var(--accent-green)] transition-colors inline-flex items-center gap-1"
+            >
+              #{tag.name}
+            </a>
+          ))}
+        </div>
+      )}
+    </header>
+
+    <!-- Article Markdown Body -->
+    <main
+      class="article-body markdown-body max-w-none text-sm sm:text-base leading-relaxed text-[var(--text-primary)]"
+      set:html={renderedHtml}
+    />
+
+    <!-- Article Footer Navigation -->
+    <footer class="pt-8 border-t border-[var(--border-main)] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-[var(--text-muted)]">
+      <div>
+        <span>Published under CFN Technical Library</span>
+      </div>
+      <div>
+        <a
+          href="/posts"
+          class="px-4 py-2 border border-[var(--border-main)] text-[var(--text-primary)] hover:border-[var(--border-highlight)] hover:bg-[var(--accent-green-glow)] transition-colors inline-flex items-center gap-1.5"
+        >
+          <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
+          <span>View More Posts</span>
+        </a>
+      </div>
+    </footer>
+  </div>
+</Layout>
