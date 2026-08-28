@@ -24,12 +24,17 @@ describe("Markdown Engine", () => {
     expect(html).toContain("obsidian-embed obsidian-image");
   });
 
-  it("renders video embeds with video player", async () => {
+  it("render video embeds", async () => {
     const md = "Demo video:\n\n![[demo-recording-456.mp4]]";
     const html = await renderMarkdown(md);
+    expect(html).toContain("obsidian-video-wrapper");
     expect(html).toContain(
-      '<video src="/media/demo-recording-456.mp4" controls',
+      '<video src="/media/demo-recording-456.mp4" class="obsidian-embed obsidian-video"',
     );
+    expect(html).toContain("video-play-overlay");
+    expect(html).toContain("video-controls-bar");
+    expect(html).toContain("video-timeline");
+    expect(html).not.toContain('<video src="/media/demo-recording-456.mp4" controls');
   });
 
   it("renders callout blocks", async () => {
@@ -39,7 +44,7 @@ describe("Markdown Engine", () => {
     expect(html).toContain('data-callout="warning"');
     expect(html).toContain("Production Alert");
     expect(html).toContain("Do not execute raw SQL");
-    expect(html).toContain('class="lucide-callout-icon"');
+    expect(html).toContain('class="callout-icon"');
     expect(html).toContain("<svg");
   });
 

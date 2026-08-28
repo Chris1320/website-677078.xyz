@@ -116,6 +116,80 @@ function isVideo(mimeType: string) {
   return mimeType.startsWith("video/");
 }
 
+function toggleVideoPlay(e: Event) {
+  const video = e.target as HTMLVideoElement;
+  if (!video) return;
+  const container = video.closest(".group\\/video");
+  const playOverlay = container?.querySelector(
+    ".video-play-overlay",
+  ) as HTMLElement | null;
+  const playIcon = container?.querySelector(".play-icon") as HTMLElement | null;
+  const pauseIcon = container?.querySelector(
+    ".pause-icon",
+  ) as HTMLElement | null;
+
+  if (video.paused) {
+    video.play().catch(() => {});
+    if (playOverlay) playOverlay.style.opacity = "0";
+    if (playIcon) playIcon.classList.add("hidden");
+    if (pauseIcon) pauseIcon.classList.remove("hidden");
+  } else {
+    video.pause();
+    if (playOverlay) playOverlay.style.opacity = "1";
+    if (playIcon) playIcon.classList.remove("hidden");
+    if (pauseIcon) pauseIcon.classList.add("hidden");
+  }
+}
+
+function toggleVideoPlayFromBtn(e: Event) {
+  const btn = e.currentTarget as HTMLElement;
+  const container = btn.closest(".group\\/video");
+  const video = container?.querySelector("video") as HTMLVideoElement | null;
+  if (video) {
+    toggleVideoPlay({ target: video } as any);
+  }
+}
+
+function onVideoTimeUpdate(e: Event) {
+  const video = e.target as HTMLVideoElement;
+  if (!video || !video.duration) return;
+  const container = video.closest(".group\\/video");
+  const progress = container?.querySelector(
+    ".video-progress",
+  ) as HTMLElement | null;
+  if (progress) {
+    const pct = (video.currentTime / video.duration) * 100;
+    progress.style.width = `${pct}%`;
+  }
+}
+
+function onVideoEnded(e: Event) {
+  const video = e.target as HTMLVideoElement;
+  if (!video) return;
+  const container = video.closest(".group\\/video");
+  const playOverlay = container?.querySelector(
+    ".video-play-overlay",
+  ) as HTMLElement | null;
+  const playIcon = container?.querySelector(".play-icon") as HTMLElement | null;
+  const pauseIcon = container?.querySelector(
+    ".pause-icon",
+  ) as HTMLElement | null;
+  if (playOverlay) playOverlay.style.opacity = "1";
+  if (playIcon) playIcon.classList.remove("hidden");
+  if (pauseIcon) pauseIcon.classList.add("hidden");
+}
+
+function seekVideo(e: MouseEvent) {
+  const timeline = e.currentTarget as HTMLElement;
+  const container = timeline.closest(".group\\/video");
+  const video = container?.querySelector("video") as HTMLVideoElement | null;
+  if (video && video.duration) {
+    const rect = timeline.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    video.currentTime = pos * video.duration;
+  }
+}
+
 async function copyToClipboard(text: string, filenameKey: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -476,13 +550,59 @@ onMounted(() => {
               class="w-full h-full object-contain p-2"
               loading="lazy"
             />
-            <video
+            <div
               v-else-if="isVideo(item.mime_type)"
-              :src="`/media/${item.filename}`"
-              controls
-              class="w-full h-full object-contain"
-              preload="metadata"
-            ></video>
+              class="w-full h-full relative group/video flex items-center justify-center bg-(--bg-primary) overflow-hidden"
+            >
+              <video
+                :src="`/media/${item.filename}`"
+                class="w-full h-full object-contain cursor-pointer"
+                preload="metadata"
+                playsinline
+                @click="toggleVideoPlay($event)"
+                @timeupdate="onVideoTimeUpdate($event)"
+                @ended="onVideoEnded($event)"
+              ></video>
+              <div
+                class="video-play-overlay absolute inset-0 flex items-center justify-center pointer-events-none bg-black/25 transition-opacity duration-200"
+              >
+                <span
+                  class="w-10 h-10 rounded-full border border-(--border-highlight) bg-(--bg-surface-elevated) text-(--accent-green-bright) flex items-center justify-center shadow-lg transform group-hover/video:scale-110 transition-transform"
+                >
+                  <Icon
+                    icon="lucide:play"
+                    class="w-5 h-5 fill-current ml-0.5"
+                  />
+                </span>
+              </div>
+              <div
+                class="absolute bottom-0 left-0 right-0 p-2 bg-linear-to-t from-black/80 to-transparent flex items-center gap-2 font-mono text-[10px] text-white opacity-0 group-hover/video:opacity-100 transition-opacity z-10"
+              >
+                <button
+                  type="button"
+                  @click.stop="toggleVideoPlayFromBtn($event)"
+                  class="text-(--accent-green) hover:text-(--accent-green-bright) p-0.5"
+                >
+                  <Icon
+                    icon="lucide:play"
+                    class="w-3.5 h-3.5 play-icon fill-current"
+                  />
+                  <Icon
+                    icon="lucide:pause"
+                    class="w-3.5 h-3.5 pause-icon hidden fill-current"
+                  />
+                </button>
+                <div
+                  class="flex-1 h-1.5 bg-white/20 rounded cursor-pointer relative hover:h-2 transition-all video-timeline"
+                  @click.stop="seekVideo($event)"
+                >
+                  <div
+                    class="h-full bg-(--accent-green) rounded video-progress pointer-events-none"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+            </div>
             <div
               v-else
               class="text-center p-4 text-(--text-muted) flex flex-col items-center justify-center"

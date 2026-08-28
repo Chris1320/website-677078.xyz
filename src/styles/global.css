@@ -158,10 +158,136 @@
   display: block;
 }
 
+.markdown-body .obsidian-video-wrapper {
+  position: relative;
+  margin: 1.5rem auto;
+  overflow: hidden;
+  border: 1px solid var(--border-main);
+  background: var(--bg-primary);
+  display: block;
+  max-width: 100%;
+}
+
+.markdown-body .obsidian-video-wrapper .obsidian-embed {
+  margin: 0;
+  border: none;
+}
+
 .markdown-body .obsidian-video {
+  display: block;
   width: 100%;
   max-height: 520px;
+  cursor: pointer;
   background: var(--bg-primary);
+}
+
+.markdown-body .video-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.25);
+  transition: opacity 0.2s ease;
+}
+
+.markdown-body .obsidian-video-wrapper.is-playing .video-play-overlay {
+  opacity: 0;
+}
+
+.markdown-body .video-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-highlight);
+  background: var(--bg-surface-elevated);
+  color: var(--accent-green-bright);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.markdown-body .obsidian-video-wrapper:hover .video-play-btn {
+  transform: scale(1.08);
+}
+
+.markdown-body .video-controls-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85),
+    rgba(0, 0, 0, 0.3) 70%,
+    transparent
+  );
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.markdown-body .obsidian-video-wrapper:hover .video-controls-bar,
+.markdown-body .obsidian-video-wrapper:focus-within .video-controls-bar,
+.markdown-body .obsidian-video-wrapper:not(.is-playing) .video-controls-bar {
+  opacity: 1;
+}
+
+.markdown-body .video-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  color: var(--accent-green);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.markdown-body .video-control-btn:hover {
+  color: var(--accent-green-bright);
+}
+
+.markdown-body .video-timeline {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+
+.markdown-body .video-timeline:hover {
+  height: 8px;
+}
+
+.markdown-body .video-progress {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-green);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+
+.markdown-body .video-time {
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .markdown-body .obsidian-wikilink {

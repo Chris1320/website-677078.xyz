@@ -207,9 +207,25 @@ function remarkObsidianLinks() {
                 value: `<img src="/media/${filename}" alt="${alt}" ${styleStr ? `style="${styleStr}"` : ""} class="obsidian-embed obsidian-image" loading="lazy" />`,
               });
             } else if (VIDEO_EXTENSIONS.has(ext)) {
+              const bigPlaySvg = renderSVG("play", {
+                width: 22,
+                height: 22,
+                className: "fill-current ml-0.5",
+              });
+              const playSvg = renderSVG("play", {
+                width: 14,
+                height: 14,
+                className: "play-icon fill-current",
+              });
+              const pauseSvg = renderSVG("pause", {
+                width: 14,
+                height: 14,
+                className: "pause-icon hidden fill-current",
+              });
+
               newChildren.push({
                 type: "html",
-                value: `<video src="/media/${filename}" controls ${styleStr ? `style="${styleStr}"` : ""} class="obsidian-embed obsidian-video" preload="metadata"></video>`,
+                value: `<div class="obsidian-video-wrapper" ${styleStr ? `style="${styleStr}"` : ""}><video src="/media/${filename}" class="obsidian-embed obsidian-video" preload="metadata" playsinline></video><div class="video-play-overlay"><span class="video-play-btn">${bigPlaySvg}</span></div><div class="video-controls-bar"><button type="button" class="video-control-btn play-toggle" aria-label="Toggle Playback">${playSvg}${pauseSvg}</button><div class="video-timeline"><div class="video-progress"></div></div><span class="video-time">00:00</span></div></div>`,
               });
             } else if (AUDIO_EXTENSIONS.has(ext)) {
               newChildren.push({
@@ -335,7 +351,7 @@ function remarkObsidianCallouts() {
   };
 }
 
-const CALLOUT_LUCIDE_MAP: Record<string, string> = {
+const CALLOUT_ICONS_MAP: Record<string, string> = {
   note: "info",
   seealso: "info",
   info: "info",
@@ -366,23 +382,37 @@ const CALLOUT_LUCIDE_MAP: Record<string, string> = {
   cite: "quote",
 };
 
-function getCalloutIcon(type: string): string {
-  const iconName = CALLOUT_LUCIDE_MAP[type] || "info";
+export function renderSVG(
+  iconName: string,
+  options?: {
+    width?: number | string;
+    height?: number | string;
+    className?: string;
+  },
+): string {
   const iconData = getIconData(lucideIcons as any, iconName);
-  if (!iconData) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-callout-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
-  }
+  if (!iconData) return "";
 
   const renderData = iconToSVG(iconData, {
-    width: "16",
-    height: "16",
+    width: options?.width || "16",
+    height: options?.height || "16",
   });
 
+  const classAttr = options?.className ? ` class="${options.className}"` : "";
   const attributes = Object.entries(renderData.attributes)
     .map(([key, val]) => `${key}="${val}"`)
     .join(" ");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="lucide-callout-icon" ${attributes}>${renderData.body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg"${classAttr} ${attributes}>${renderData.body}</svg>`;
+}
+
+function getCalloutIcon(type: string): string {
+  const iconName = CALLOUT_ICONS_MAP[type] || "info";
+  return renderSVG(iconName, {
+    width: 16,
+    height: 16,
+    className: "callout-icon",
+  });
 }
 
 /**
