@@ -21,6 +21,11 @@ describe("Security & Route Authorization", () => {
     expect(isRouteProtected("/api/auth/totp/setup")).toBe(true);
     expect(isRouteProtected("/api/auth/totp/enable")).toBe(true);
     expect(isRouteProtected("/api/auth/totp/disable")).toBe(true);
+
+    expect(isRouteProtected("//admin")).toBe(true);
+    expect(isRouteProtected("//api/admin/posts")).toBe(true);
+    expect(isRouteProtected("///api/media/upload")).toBe(true);
+    expect(isRouteProtected("/api//admin/posts")).toBe(true);
   });
 
   it("public routes", () => {

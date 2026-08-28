@@ -17,7 +17,7 @@ export const POST: APIRoute = async (context) => {
 
     const db = getDb();
     const body = (await context.request.json()) as any;
-    const { currentPassword } = body || {};
+    const { currentPassword, totpCode } = body || {};
 
     if (!currentPassword || typeof currentPassword !== "string") {
       return new Response(
@@ -33,6 +33,7 @@ export const POST: APIRoute = async (context) => {
       db,
       authUser.id,
       currentPassword,
+      typeof totpCode === "string" ? totpCode : undefined,
     );
 
     if (!result.success) {

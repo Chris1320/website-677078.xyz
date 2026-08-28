@@ -14,7 +14,8 @@
     "wdeploy": "astro build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply website_677078_xyz_db --local",
     "db:reset": "rm -rf .wrangler/state && wrangler d1 migrations apply website_677078_xyz_db --local",
-    "db:exec": "wrangler d1 execute website_677078_xyz_db --local"
+    "db:exec": "wrangler d1 execute website_677078_xyz_db --local",
+    "seed:admin": "bun scripts/seed-admin.ts"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.2.5",

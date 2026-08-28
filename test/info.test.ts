@@ -25,7 +25,11 @@ describe("Application Constants", () => {
     expect(info.HOMEPAGE_RECENT_POSTS_LIMIT).toBe(5);
     expect(info.SITE_INFO.title).toBe("CFN | 67 70 78");
     expect(info.SITE_INFO.siteUrl).toBe("https://677078.xyz");
-    expect(typeof info.SECURITY_SIGNING_SECRET).toBe("string");
-    expect(info.SECURITY_SIGNING_SECRET.length).toBeGreaterThan(0);
+    expect(
+      info.getSecuritySigningSecret(
+        "test_secret_key_that_is_at_least_32_characters_long",
+      ),
+    ).toBe("test_secret_key_that_is_at_least_32_characters_long");
+    expect(() => info.getSecuritySigningSecret("too_short")).toThrow();
   });
 });

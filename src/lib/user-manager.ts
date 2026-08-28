@@ -1,9 +1,9 @@
 import * as OTPAuth from "otpauth";
-import { eq, count } from "drizzle-orm";
-import { users, type User, type InsertUser } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { users, type User } from "../db/schema";
 import type { getDb } from "../db";
 import {
-  SECURITY_SIGNING_SECRET,
+  getSecuritySigningSecret,
   SECURITY_SESSION_MAX_AGE_SECONDS,
   SECURITY_PBKDF2_ITERATIONS,
 } from "./info";
@@ -193,9 +193,10 @@ export class UserManager {
 
     const encodedPayload = base64UrlEncode(payload);
 
+    const signingSecret = getSecuritySigningSecret();
     const key = await crypto.subtle.importKey(
       "raw",
-      new TextEncoder().encode(SECURITY_SIGNING_SECRET),
+      new TextEncoder().encode(signingSecret),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"],
@@ -220,9 +221,10 @@ export class UserManager {
       const [encodedPayload, signatureHex] = token.split(".");
       if (!encodedPayload || !signatureHex) return null;
 
+      const signingSecret = getSecuritySigningSecret();
       const key = await crypto.subtle.importKey(
         "raw",
-        new TextEncoder().encode(SECURITY_SIGNING_SECRET),
+        new TextEncoder().encode(signingSecret),
         { name: "HMAC", hash: "SHA-256" },
         false,
         ["verify"],
@@ -265,36 +267,6 @@ export class UserManager {
     return "auth_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }
 
-  static async ensureDefaultAdmin(db: ReturnType<typeof getDb>): Promise<User> {
-    const userCountResult = await db.select({ val: count() }).from(users).get();
-    const existingCount = userCountResult?.val ?? 0;
-
-    if (existingCount === 0) {
-      const defaultPasswordHash = await this.hashPassword("admin");
-      const adminId = crypto.randomUUID();
-      const now = new Date();
-
-      const newAdmin: InsertUser = {
-        id: adminId,
-        username: "admin",
-        password_hash: defaultPasswordHash,
-        totp_secret: null,
-        totp_enabled: false,
-        created_at: now,
-        updated_at: now,
-      };
-
-      await db.insert(users).values(newAdmin);
-      return (await db
-        .select()
-        .from(users)
-        .where(eq(users.id, adminId))
-        .get())!;
-    }
-
-    return (await db.select().from(users).limit(1).get())!;
-  }
-
   static async findByUsername(
     db: ReturnType<typeof getDb>,
     username: string,
@@ -327,9 +299,6 @@ export class UserManager {
     error?: string;
     requireTotp?: boolean;
   }> {
-    // Ensure default admin exists if database is fresh
-    await this.ensureDefaultAdmin(db);
-
     const user = await this.findByUsername(db, username);
     if (!user) {
       return { success: false, error: "Invalid username or password" };
@@ -480,6 +449,7 @@ export class UserManager {
     db: ReturnType<typeof getDb>,
     userId: string,
     currentPassword: string,
+    totpCode?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const user = await this.findById(db, userId);
     if (!user) {
@@ -492,6 +462,22 @@ export class UserManager {
     );
     if (!isPasswordValid) {
       return { success: false, error: "Incorrect password" };
+    }
+
+    if (user.totp_enabled && user.totp_secret) {
+      if (!totpCode || !totpCode.trim()) {
+        return {
+          success: false,
+          error: "Two-factor authentication code is required",
+        };
+      }
+      const isTotpValid = this.verifyTotp(user.totp_secret, totpCode);
+      if (!isTotpValid) {
+        return {
+          success: false,
+          error: "Invalid two-factor authentication code",
+        };
+      }
     }
 
     const now = new Date();

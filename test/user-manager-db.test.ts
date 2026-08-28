@@ -20,22 +20,32 @@ describe("UserManager Database Operations", () => {
 
   const db = drizzle(sqlite, { schema }) as any;
 
-  it("seed default admin user when users table is empty", async () => {
-    const admin = await UserManager.ensureDefaultAdmin(db);
-    expect(admin).not.toBeNull();
-    expect(admin.username).toBe("admin");
-    expect(admin.totp_enabled).toBe(false);
-
-    // Verify password against default "admin"
-    const isValid = await UserManager.verifyPassword(
-      "admin",
-      admin.password_hash,
-    );
-    expect(isValid).toBe(true);
+  it("fails authentication when users table is empty without auto-seeding", async () => {
+    const res = await UserManager.authenticate(db, "admin", "admin");
+    expect(res.success).toBe(false);
+    expect(res.error).toBe("Invalid username or password");
   });
 
-  it("authenticate default admin credentials", async () => {
-    const res = await UserManager.authenticate(db, "admin", "admin");
+  it("authenticates an explicitly seeded admin user", async () => {
+    const adminId = crypto.randomUUID();
+    const passwordHash = await UserManager.hashPassword("admin_password_123");
+    const now = new Date();
+
+    await db.insert(schema.users).values({
+      id: adminId,
+      username: "admin",
+      password_hash: passwordHash,
+      totp_secret: null,
+      totp_enabled: false,
+      created_at: now,
+      updated_at: now,
+    });
+
+    const res = await UserManager.authenticate(
+      db,
+      "admin",
+      "admin_password_123",
+    );
     expect(res.success).toBe(true);
     expect(res.user?.username).toBe("admin");
 
@@ -59,14 +69,18 @@ describe("UserManager Database Operations", () => {
     const updateRes = await UserManager.updateCredentials(
       db,
       admin!.id,
-      "admin",
+      "admin_password_123",
       "newadmin",
       "newpassword123",
     );
     expect(updateRes.success).toBe(true);
     expect(updateRes.updatedUser?.username).toBe("newadmin");
 
-    const oldAuth = await UserManager.authenticate(db, "admin", "admin");
+    const oldAuth = await UserManager.authenticate(
+      db,
+      "admin",
+      "admin_password_123",
+    );
     expect(oldAuth.success).toBe(false);
 
     const newAuth = await UserManager.authenticate(
@@ -122,21 +136,45 @@ describe("UserManager Database Operations", () => {
     expect(goodCodeAuth.success).toBe(true);
   });
 
-  it("disables TOTP two-factor authentication with current password", async () => {
+  it("disables TOTP two-factor authentication requiring both password and TOTP code", async () => {
     const user = await UserManager.findByUsername(db, "newadmin");
     expect(user).not.toBeNull();
+    const userSecret = user!.totp_secret!;
 
-    const failDisable = await UserManager.disableTotp(
+    // Wrong password
+    const failDisablePass = await UserManager.disableTotp(
       db,
       user!.id,
       "wrongpass",
+      UserManager.generateTotpCode(userSecret),
     );
-    expect(failDisable.success).toBe(false);
+    expect(failDisablePass.success).toBe(false);
 
+    // Missing TOTP code
+    const failDisableNoCode = await UserManager.disableTotp(
+      db,
+      user!.id,
+      "newpassword123",
+      "",
+    );
+    expect(failDisableNoCode.success).toBe(false);
+
+    // Wrong TOTP code
+    const failDisableBadCode = await UserManager.disableTotp(
+      db,
+      user!.id,
+      "newpassword123",
+      "000000",
+    );
+    expect(failDisableBadCode.success).toBe(false);
+
+    // Valid password and valid TOTP code
+    const validTotpCode = UserManager.generateTotpCode(userSecret);
     const disableRes = await UserManager.disableTotp(
       db,
       user!.id,
       "newpassword123",
+      validTotpCode,
     );
     expect(disableRes.success).toBe(true);
 

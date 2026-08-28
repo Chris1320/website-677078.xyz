@@ -29,6 +29,7 @@ const totpSecret = ref("");
 const totpOtpauthUrl = ref("");
 const totpVerificationCode = ref("");
 const totpDisablePassword = ref("");
+const totpDisableCode = ref("");
 
 async function fetchUserProfile() {
   try {
@@ -54,6 +55,7 @@ watch(
       newPassword.value = "";
       confirmPassword.value = "";
       totpDisablePassword.value = "";
+      totpDisableCode.value = "";
       isSettingUpTotp.value = false;
       fetchUserProfile();
     }
@@ -173,8 +175,9 @@ async function handleDisableTotp() {
   errorMessage.value = "";
   successMessage.value = "";
 
-  if (!totpDisablePassword.value) {
-    errorMessage.value = "Please enter your password to disable 2FA";
+  if (!totpDisablePassword.value || !totpDisableCode.value) {
+    errorMessage.value =
+      "Please enter both your password and 6-digit 2FA code to disable 2FA";
     return;
   }
 
@@ -185,6 +188,7 @@ async function handleDisableTotp() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         currentPassword: totpDisablePassword.value,
+        totpCode: totpDisableCode.value,
       }),
     });
 
@@ -195,6 +199,7 @@ async function handleDisableTotp() {
 
     totpEnabled.value = false;
     totpDisablePassword.value = "";
+    totpDisableCode.value = "";
     successMessage.value = "Two-factor authentication disabled";
   } catch (err: any) {
     errorMessage.value = err?.message || "Error disabling TOTP";
@@ -384,7 +389,8 @@ async function handleDisableTotp() {
                 Disable Two-Factor Authentication
               </label>
               <p class="text-[11px] text-(--text-muted)">
-                To disable 2FA, enter your current password below.
+                To disable 2FA, enter your current password and 6-digit
+                authenticator code below.
               </p>
               <input
                 v-model="totpDisablePassword"
@@ -392,9 +398,16 @@ async function handleDisableTotp() {
                 placeholder="Enter current password"
                 class="w-full bg-(--bg-primary) border border-(--border-main) p-2 text-xs text-(--text-primary) focus:border-(--border-highlight) focus:outline-none"
               />
+              <input
+                v-model="totpDisableCode"
+                type="text"
+                maxlength="6"
+                placeholder="Enter 6-digit 2FA code"
+                class="w-full bg-(--bg-primary) border border-(--border-main) p-2 text-xs text-(--text-primary) tracking-widest text-center font-mono focus:border-(--border-highlight) focus:outline-none"
+              />
               <button
                 @click="handleDisableTotp"
-                :disabled="loading || !totpDisablePassword"
+                :disabled="loading || !totpDisablePassword || !totpDisableCode"
                 class="w-full py-2 border border-(--status-error-border) text-(--status-error-text) hover:bg-(--status-error-bg) font-bold text-xs uppercase disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 <Icon icon="lucide:shield-alert" class="w-3.5 h-3.5" />

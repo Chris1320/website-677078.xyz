@@ -5,7 +5,11 @@ import { Icon } from 'astro-icon/components';
 
 export const prerender = false;
 
-const redirectTarget = Astro.url.searchParams.get('redirect') || '/admin';
+const rawRedirect = Astro.url.searchParams.get('redirect') || '/admin';
+const redirectTarget =
+  rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') && !rawRedirect.includes('\\')
+    ? rawRedirect
+    : '/admin';
 ---
 
 <Layout title="CFN | 67 70 78" description="ChrisFromNowhere's personal blog">

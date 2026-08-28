@@ -50,7 +50,7 @@ export async function getAuthenticatedUser(
  * Determines if a given URL path is restricted to authenticated administrators.
  */
 export function isRouteProtected(pathname: string): boolean {
-  const path = pathname.toLowerCase();
+  const path = pathname.replace(/\/+/g, "/").toLowerCase();
 
   if (path === "/admin" || path.startsWith("/admin/")) {
     return true;

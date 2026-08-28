@@ -82,6 +82,21 @@ export const MAX_POST_TAG_NAME_LENGTH = 60;
 
 export const MAX_MEDIA_FILE_SIZE = 25 * 1024 * 1024; // in MB
 
-export const SECURITY_SIGNING_SECRET = import.meta.env.SECURITY_SIGNING_SECRET;
+export function getSecuritySigningSecret(customSecret?: string): string {
+  const secret =
+    customSecret ||
+    import.meta.env.SECURITY_SIGNING_SECRET ||
+    (typeof process !== "undefined"
+      ? process.env?.SECURITY_SIGNING_SECRET
+      : undefined);
+
+  if (!secret || typeof secret !== "string" || secret.length < 32) {
+    throw new Error(
+      "SECURITY_SIGNING_SECRET must be configured with at least 32 characters.",
+    );
+  }
+  return secret;
+}
+
 export const SECURITY_PBKDF2_ITERATIONS = 100_000;
 export const SECURITY_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;

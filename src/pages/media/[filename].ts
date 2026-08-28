@@ -29,14 +29,23 @@ export const GET: APIRoute = async (context) => {
       headers.set("Content-Type", getMimeTypeForExtension(filename));
     }
 
-    const ext = filename.split(".").pop()?.toLowerCase();
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    const contentType = headers.get("Content-Type") || "";
 
-    // Sandbox any directly viewed SVGs
-    if (ext === "svg" || headers.get("Content-Type") === "image/svg+xml") {
+    // Sandbox SVGs and potentially dangerous active web formats
+    if (ext === "svg" || contentType === "image/svg+xml") {
       headers.set(
         "Content-Security-Policy",
         "default-src 'none'; style-src 'unsafe-inline'; sandbox",
       );
+    } else if (
+      ext === "html" ||
+      ext === "htm" ||
+      ext === "xhtml" ||
+      contentType.includes("text/html")
+    ) {
+      headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
+      headers.set("Content-Disposition", `attachment; filename="${filename}"`);
     }
 
     return new Response(object.body, {
