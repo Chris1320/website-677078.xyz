@@ -43,7 +43,6 @@ export const post_tags = sqliteTable(
 export const media = sqliteTable("media", {
   id: text("id").primaryKey(),
   filename: text("filename").notNull().unique(),
-  original_name: text("original_name").notNull(),
   mime_type: text("mime_type").notNull(),
   size_bytes: integer("size_bytes").notNull(),
   hash: text("hash"),

@@ -7,7 +7,6 @@ import { MEDIA_PAGE_SIZE } from "../../lib/info";
 export interface MediaUsageItem {
   id: string;
   filename: string;
-  original_name: string;
   mime_type: string;
   size_bytes: number;
   hash?: string | null;
@@ -73,7 +72,6 @@ const filteredMedia = computed(() => {
 
     return (
       item.filename.toLowerCase().includes(query) ||
-      item.original_name.toLowerCase().includes(query) ||
       item.referenced_in.some((r) => r.title.toLowerCase().includes(query))
     );
   });
@@ -474,7 +472,7 @@ onMounted(() => {
             <img
               v-if="isImage(item.mime_type)"
               :src="`/media/${item.filename}`"
-              :alt="item.original_name"
+              :alt="item.filename"
               class="w-full h-full object-contain p-2"
               loading="lazy"
             />
@@ -676,7 +674,7 @@ onMounted(() => {
             <img
               v-if="isImage(inspectingMedia.mime_type)"
               :src="`/media/${inspectingMedia.filename}`"
-              :alt="inspectingMedia.original_name"
+              :alt="inspectingMedia.filename"
               class="w-full h-full object-contain"
             />
             <Icon
@@ -826,7 +824,7 @@ onMounted(() => {
             <img
               v-if="isImage(assetToDelete.mime_type)"
               :src="`/media/${assetToDelete.filename}`"
-              :alt="assetToDelete.original_name"
+              :alt="assetToDelete.filename"
               class="w-full h-full object-contain"
             />
             <Icon

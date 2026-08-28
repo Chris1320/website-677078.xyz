@@ -8,7 +8,6 @@ export const prerender = false;
 interface MediaUsage {
   id: string;
   filename: string;
-  original_name: string;
   mime_type: string;
   size_bytes: number;
   created_at: number;
@@ -80,7 +79,6 @@ export const GET: APIRoute = async () => {
       return {
         id: asset.id,
         filename: asset.filename,
-        original_name: asset.original_name,
         mime_type: asset.mime_type,
         size_bytes: asset.size_bytes,
         created_at: asset.created_at.getTime(),

@@ -85,7 +85,6 @@ export const POST: APIRoute = async (context) => {
           id: existingByHash.id,
           filename: existingByHash.filename,
           url: `/media/${existingByHash.filename}`,
-          originalName: existingByHash.original_name,
           mimeType: existingByHash.mime_type,
           sizeBytes: existingByHash.size_bytes,
           hash: existingByHash.hash,
@@ -135,7 +134,6 @@ export const POST: APIRoute = async (context) => {
     await db.insert(media).values({
       id: mediaId,
       filename,
-      original_name: originalName,
       mime_type: contentType,
       size_bytes: file.size,
       hash: hashHex,
@@ -147,7 +145,6 @@ export const POST: APIRoute = async (context) => {
         id: mediaId,
         filename,
         url: `/media/${filename}`,
-        originalName,
         mimeType: contentType,
         sizeBytes: file.size,
         hash: hashHex,
