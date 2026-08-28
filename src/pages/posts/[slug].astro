@@ -13,6 +13,7 @@ export const prerender = false;
 const { slug } = Astro.params;
 
 if (!slug) {
+  Astro.response.status = 404;
   return Astro.rewrite('/404');
 }
 
@@ -30,6 +31,7 @@ try {
     .get();
 
   if (!foundPost) {
+    Astro.response.status = 404;
     return Astro.rewrite('/404');
   }
 
@@ -37,6 +39,7 @@ try {
   if (foundPost.status === 'draft') {
     const authUser = await getAuthenticatedUser(Astro.request);
     if (!authUser) {
+      Astro.response.status = 404;
       return Astro.rewrite('/404');
     }
     return Astro.redirect(`/admin?edit=${foundPost.id}`);
