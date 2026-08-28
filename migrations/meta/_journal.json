@@ -15,6 +15,13 @@
       "when": 1787871598994,
       "tag": "0001_grey_pretty_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787923640857,
+      "tag": "0002_stiff_betty_ross",
+      "breakpoints": true
     }
   ]
 }

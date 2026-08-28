@@ -50,6 +50,18 @@ export const media = sqliteTable("media", {
   created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password_hash: text("password_hash").notNull(),
+  totp_secret: text("totp_secret"),
+  totp_enabled: integer("totp_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  created_at: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export const postsRelations = relations(posts, ({ many }) => ({
   post_tags: many(post_tags),
 }));
@@ -75,3 +87,5 @@ export type Tag = typeof tags.$inferSelect;
 export type InsertTag = typeof tags.$inferInsert;
 export type Media = typeof media.$inferSelect;
 export type InsertMedia = typeof media.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
