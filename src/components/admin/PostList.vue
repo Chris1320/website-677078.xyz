@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { Icon } from "@iconify/vue";
+import { formatDate } from "../../lib/utils";
+import { POSTS_PAGE_SIZE } from "../../lib/info";
 
 export interface PostItem {
   id: string;
@@ -9,15 +11,15 @@ export interface PostItem {
   description?: string | null;
   content: string;
   status: "draft" | "published";
-  created_at: number;
-  updated_at: number;
-  published_at?: number | null;
+  created_at: number | string | Date;
+  updated_at: number | string | Date;
+  published_at?: number | string | Date | null;
   tags?: { id: string; name: string; slug: string }[];
 }
 
 const props = defineProps<{
   posts: PostItem[];
-  loading: boolean;
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -30,8 +32,6 @@ const emit = defineEmits<{
 const searchQuery = ref("");
 const statusFilter = ref<"all" | "published" | "draft">("all");
 
-// Pagination State
-const PAGE_SIZE = 10;
 const currentPage = ref(1);
 
 const filteredPosts = computed(() => {
@@ -51,32 +51,23 @@ const filteredPosts = computed(() => {
 });
 
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(filteredPosts.value.length / PAGE_SIZE));
+  return Math.max(1, Math.ceil(filteredPosts.value.length / POSTS_PAGE_SIZE));
 });
 
 const paginatedPosts = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE;
-  return filteredPosts.value.slice(start, start + PAGE_SIZE);
+  const start = (currentPage.value - 1) * POSTS_PAGE_SIZE;
+  return filteredPosts.value.slice(start, start + POSTS_PAGE_SIZE);
 });
 
 // Reset page on search or status filter change
 watch([searchQuery, statusFilter], () => {
   currentPage.value = 1;
 });
-
-function formatDate(timestamp?: number | null) {
-  if (!timestamp) return "—";
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Header Actions -->
+    <!-- Header -->
     <div
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4"
     >
@@ -107,7 +98,7 @@ function formatDate(timestamp?: number | null) {
           class="flex-1 sm:flex-none px-4 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5 font-mono"
         >
           <Icon icon="lucide:plus" class="w-4 h-4" />
-          <span>Create Post</span>
+          <span>Create</span>
         </button>
       </div>
     </div>
@@ -159,7 +150,7 @@ function formatDate(timestamp?: number | null) {
           :class="[
             'px-3 py-1 text-xs uppercase tracking-wider transition-colors font-mono',
             statusFilter === 'draft'
-              ? 'bg-amber-600 text-black font-bold'
+              ? 'bg-(--status-warning-solid) text-(--text-inverse) font-bold'
               : 'text-(--text-secondary) hover:text-(--text-primary)',
           ]"
         >
@@ -177,7 +168,7 @@ function formatDate(timestamp?: number | null) {
           v-if="loading && posts.length === 0"
           class="p-8 text-center text-(--text-muted) font-mono text-sm"
         >
-          > Querying D1 database...
+          > Querying database...
         </div>
         <div
           v-else-if="filteredPosts.length === 0"
@@ -191,9 +182,9 @@ function formatDate(timestamp?: number | null) {
           >
             <tr>
               <th class="p-3">Status</th>
-              <th class="p-3">Title & Slug</th>
+              <th class="p-3">Title</th>
               <th class="p-3">Tags</th>
-              <th class="p-3">Updated</th>
+              <th class="p-3">Date Updated</th>
               <th class="p-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -209,7 +200,7 @@ function formatDate(timestamp?: number | null) {
                     'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider',
                     post.status === 'published'
                       ? 'border border-(--accent-green) text-(--accent-green) bg-(--accent-green-glow)'
-                      : 'border border-amber-500/50 text-amber-400 bg-amber-950/30',
+                      : 'border border-(--status-warning-border) text-(--status-warning-text) bg-(--status-warning-bg)',
                   ]"
                 >
                   {{ post.status }}
@@ -251,7 +242,6 @@ function formatDate(timestamp?: number | null) {
                   :href="`/posts/${post.slug}`"
                   target="_blank"
                   class="px-2 py-1 text-xs border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main) inline-flex items-center gap-1"
-                  title="View Live Page"
                 >
                   <Icon icon="lucide:external-link" class="w-3 h-3" />
                   <span>View</span>
@@ -267,7 +257,7 @@ function formatDate(timestamp?: number | null) {
                 <button
                   type="button"
                   @click="emit('delete-post', post)"
-                  class="px-2 py-1 text-xs border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/30 inline-flex items-center gap-1"
+                  class="px-2 py-1 text-xs border border-(--status-error-border) text-(--status-error-text) hover:bg-(--status-error-bg) inline-flex items-center gap-1"
                 >
                   <Icon icon="lucide:trash-2" class="w-3 h-3" />
                   <span>Delete</span>

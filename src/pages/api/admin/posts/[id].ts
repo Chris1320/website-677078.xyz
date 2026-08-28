@@ -1,19 +1,17 @@
 import type { APIRoute } from "astro";
 import { eq, or } from "drizzle-orm";
 import { getDb, posts, tags, post_tags } from "../../../../db";
+import { slugify } from "../../../../lib/utils";
+import {
+  MAX_POST_TITLE_LENGTH,
+  MAX_POST_DESCRIPTION_LENGTH,
+  MAX_POST_CONTENT_LENGTH,
+  MAX_POST_SLUG_LENGTH,
+  MAX_POST_TAGS_COUNT,
+  MAX_POST_TAG_NAME_LENGTH,
+} from "../../../../lib/info";
 
 export const prerender = false;
-
-function slugify(text: string): string {
-  return (
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "post"
-  );
-}
 
 export const GET: APIRoute = async (context) => {
   const { id } = context.params;
@@ -102,13 +100,14 @@ export const PUT: APIRoute = async (context) => {
     const body = (await context.request.json()) as any;
     const { title, description, content, status, tags: rawTags } = body || {};
 
-    const updatedTitle =
-      typeof title === "string" && title.trim()
-        ? title.trim()
-        : existingPost.title;
+    let updatedTitle = existingPost.title;
+    if (typeof title === "string" && title.trim()) {
+      updatedTitle = title.trim().slice(0, MAX_POST_TITLE_LENGTH);
+    }
+
     let updatedSlug = existingPost.slug;
     if (typeof body.slug === "string" && body.slug.trim()) {
-      const candidateSlug = slugify(body.slug);
+      const candidateSlug = slugify(body.slug).slice(0, MAX_POST_SLUG_LENGTH);
       if (candidateSlug !== existingPost.slug) {
         const slugCheck = await db
           .select()
@@ -116,26 +115,59 @@ export const PUT: APIRoute = async (context) => {
           .where(eq(posts.slug, candidateSlug))
           .get();
         if (slugCheck && slugCheck.id !== existingPost.id) {
-          updatedSlug = `${candidateSlug}-${crypto.randomUUID().slice(0, 6)}`;
+          updatedSlug = `${candidateSlug.slice(0, MAX_POST_SLUG_LENGTH - 10)}-${crypto.randomUUID().slice(0, 6)}`;
         } else {
           updatedSlug = candidateSlug;
         }
       }
     }
 
-    const updatedDescription =
-      description !== undefined
-        ? description
-          ? String(description).trim()
-          : null
-        : existingPost.description;
-    const updatedContent =
-      typeof content === "string" ? content : existingPost.content;
-    const updatedStatus = status === "published" ? "published" : "draft";
-    const now = new Date();
+    let updatedDescription = existingPost.description;
+    if (description !== undefined) {
+      updatedDescription =
+        description && typeof description === "string"
+          ? String(description).trim().slice(0, MAX_POST_DESCRIPTION_LENGTH)
+          : null;
+    }
 
+    let updatedContent = existingPost.content;
+    if (typeof content === "string") {
+      if (content.length > MAX_POST_CONTENT_LENGTH) {
+        return new Response(
+          JSON.stringify({
+            error: `Content exceeds maximum size of ${MAX_POST_CONTENT_LENGTH / 1024 / 1024}MB`,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      updatedContent = content;
+    }
+
+    let updatedStatus = existingPost.status;
+    if (status !== undefined) {
+      if (status !== "draft" && status !== "published") {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid status. Must be 'draft' or 'published'.",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      updatedStatus = status;
+    }
+
+    const now = new Date();
     let publishedAt = existingPost.published_at;
-    if (updatedStatus === "published" && !publishedAt) {
+    if (
+      body.updatePublishedDate === true ||
+      (updatedStatus === "published" && !publishedAt)
+    ) {
       publishedAt = now;
     } else if (updatedStatus === "draft" && body.unpublish === true) {
       publishedAt = null;
@@ -160,10 +192,11 @@ export const PUT: APIRoute = async (context) => {
       // Clear existing relations
       await db.delete(post_tags).where(eq(post_tags.post_id, existingPost.id));
 
-      for (const rawTagName of rawTags) {
+      const sanitizedTagList = rawTags.slice(0, MAX_POST_TAGS_COUNT);
+      for (const rawTagName of sanitizedTagList) {
         if (typeof rawTagName !== "string" || !rawTagName.trim()) continue;
-        const tagName = rawTagName.trim();
-        const tagSlug = slugify(tagName);
+        const tagName = rawTagName.trim().slice(0, MAX_POST_TAG_NAME_LENGTH);
+        const tagSlug = slugify(tagName).slice(0, MAX_POST_TAG_NAME_LENGTH);
 
         let existingTag = await db
           .select()
@@ -252,10 +285,7 @@ export const DELETE: APIRoute = async (context) => {
       });
     }
 
-    // Delete post_tags
     await db.delete(post_tags).where(eq(post_tags.post_id, existingPost.id));
-
-    // Delete post
     await db.delete(posts).where(eq(posts.id, existingPost.id));
 
     return new Response(

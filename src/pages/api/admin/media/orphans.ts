@@ -13,7 +13,12 @@ interface MediaUsage {
   size_bytes: number;
   created_at: number;
   is_orphan: boolean;
-  referenced_in: { id: string; title: string; slug: string }[];
+  referenced_in: {
+    id: string;
+    title: string;
+    slug: string;
+    status: "draft" | "published";
+  }[];
 }
 
 export const GET: APIRoute = async () => {
@@ -27,6 +32,7 @@ export const GET: APIRoute = async () => {
           id: posts.id,
           title: posts.title,
           slug: posts.slug,
+          status: posts.status,
           content: posts.content,
         })
         .from(posts)
@@ -35,7 +41,12 @@ export const GET: APIRoute = async () => {
 
     const referencesByFilename: Record<
       string,
-      { id: string; title: string; slug: string }[]
+      {
+        id: string;
+        title: string;
+        slug: string;
+        status: "draft" | "published";
+      }[]
     > = {};
 
     for (const post of allPosts) {
@@ -48,6 +59,7 @@ export const GET: APIRoute = async () => {
           id: post.id,
           title: post.title,
           slug: post.slug,
+          status: post.status as "draft" | "published",
         });
       }
     }
@@ -110,7 +122,7 @@ export const POST: APIRoute = async (context) => {
     const body = (await context.request.json()) as any;
     const { filenames = [], allOrphans = false } = body || {};
 
-    // Scan all posts to verify which files are truly unreferenced
+    // Scan all posts to verify which files are really unreferenced
     const allPosts = await db
       .select({ content: posts.content })
       .from(posts)
@@ -130,7 +142,7 @@ export const POST: APIRoute = async (context) => {
       targetMedia = allMedia.filter((m) => !activeReferences.has(m.filename));
     } else if (Array.isArray(filenames) && filenames.length > 0) {
       const requestedSet = new Set(filenames);
-      // Strictly prevent deleting files that are currently in use
+      // prevent deleting files that are currently in use
       targetMedia = allMedia.filter(
         (m) =>
           requestedSet.has(m.filename) && !activeReferences.has(m.filename),
@@ -160,7 +172,10 @@ export const POST: APIRoute = async (context) => {
         deletedFilenames.push(asset.filename);
         mediaIdsToDelete.push(asset.id);
       } catch (delErr) {
-        console.error(`Failed to delete ${asset.filename} from R2:`, delErr);
+        console.error(
+          `Failed to delete ${asset.filename} from object store:`,
+          delErr,
+        );
       }
     }
 

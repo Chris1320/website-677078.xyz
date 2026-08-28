@@ -1,21 +1,19 @@
 import type { APIRoute } from "astro";
 import { desc, eq, inArray } from "drizzle-orm";
 import { getDb, posts, tags, post_tags } from "../../../../db";
+import { slugify } from "../../../../lib/utils";
+import {
+  MAX_POST_TITLE_LENGTH,
+  MAX_POST_DESCRIPTION_LENGTH,
+  MAX_POST_CONTENT_LENGTH,
+  MAX_POST_SLUG_LENGTH,
+  MAX_POST_TAGS_COUNT,
+  MAX_POST_TAG_NAME_LENGTH,
+} from "../../../../lib/info";
 
 export const prerender = false;
 
-function slugify(text: string): string {
-  return (
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "post"
-  );
-}
-
-export const GET: APIRoute = async (context) => {
+export const GET: APIRoute = async () => {
   try {
     const db = getDb();
 
@@ -100,6 +98,18 @@ export const POST: APIRoute = async (context) => {
       });
     }
 
+    if (title.length > MAX_POST_TITLE_LENGTH) {
+      return new Response(
+        JSON.stringify({
+          error: `Title exceeds maximum length of ${MAX_POST_TITLE_LENGTH} characters`,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     if (content === undefined || typeof content !== "string") {
       return new Response(JSON.stringify({ error: "Content is required" }), {
         status: 400,
@@ -107,7 +117,32 @@ export const POST: APIRoute = async (context) => {
       });
     }
 
+    if (content.length > MAX_POST_CONTENT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: "Content exceeds maximum allowed size" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (status !== "draft" && status !== "published") {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid status. Must be 'draft' or 'published'.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     let slug = body.slug ? slugify(body.slug) : slugify(title);
+    if (slug.length > MAX_POST_SLUG_LENGTH) {
+      slug = slug.slice(0, MAX_POST_SLUG_LENGTH);
+    }
 
     // Check slug collision
     const existingPost = await db
@@ -116,18 +151,23 @@ export const POST: APIRoute = async (context) => {
       .where(eq(posts.slug, slug))
       .get();
     if (existingPost) {
-      slug = `${slug}-${crypto.randomUUID().slice(0, 6)}`;
+      slug = `${slug.slice(0, MAX_POST_SLUG_LENGTH - 10)}-${crypto.randomUUID().slice(0, 6)}`;
     }
 
     const postId = crypto.randomUUID();
     const now = new Date();
     const isPublished = status === "published";
 
+    const cleanDescription =
+      typeof description === "string"
+        ? description.trim().slice(0, MAX_POST_DESCRIPTION_LENGTH)
+        : null;
+
     await db.insert(posts).values({
       id: postId,
       slug,
       title: title.trim(),
-      description: description.trim() || null,
+      description: cleanDescription,
       content,
       status: isPublished ? "published" : "draft",
       created_at: now,
@@ -135,13 +175,14 @@ export const POST: APIRoute = async (context) => {
       published_at: isPublished ? now : null,
     });
 
-    // Handle tags
+    // Handle tags with limits and validation
     const attachedTags: { id: string; name: string; slug: string }[] = [];
     if (Array.isArray(rawTags)) {
-      for (const rawTagName of rawTags) {
+      const sanitizedTagList = rawTags.slice(0, MAX_POST_TAGS_COUNT);
+      for (const rawTagName of sanitizedTagList) {
         if (typeof rawTagName !== "string" || !rawTagName.trim()) continue;
-        const tagName = rawTagName.trim();
-        const tagSlug = slugify(tagName);
+        const tagName = rawTagName.trim().slice(0, MAX_POST_TAG_NAME_LENGTH);
+        const tagSlug = slugify(tagName).slice(0, MAX_POST_TAG_NAME_LENGTH);
 
         let existingTag = await db
           .select()

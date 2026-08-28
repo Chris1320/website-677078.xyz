@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import { Icon } from "@iconify/vue";
+import { formatDate, formatBytes } from "../../lib/utils";
+import { MEDIA_PAGE_SIZE } from "../../lib/info";
 
 export interface MediaUsageItem {
   id: string;
@@ -11,7 +13,12 @@ export interface MediaUsageItem {
   hash?: string | null;
   created_at: number;
   is_orphan: boolean;
-  referenced_in: { id: string; title: string; slug: string }[];
+  referenced_in: {
+    id: string;
+    title: string;
+    slug: string;
+    status?: "draft" | "published";
+  }[];
 }
 
 const mediaList = ref<MediaUsageItem[]>([]);
@@ -29,12 +36,13 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 
-// Pagination State
-const PAGE_SIZE = 12;
 const currentPage = ref(1);
 
-// Media Reference Inspector Modal State
 const inspectingMedia = ref<MediaUsageItem | null>(null);
+
+const assetToDelete = ref<MediaUsageItem | null>(null);
+const isDeletingAsset = ref(false);
+const showPruneModal = ref(false);
 
 async function fetchMedia() {
   loading.value = true;
@@ -72,12 +80,12 @@ const filteredMedia = computed(() => {
 });
 
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(filteredMedia.value.length / PAGE_SIZE));
+  return Math.max(1, Math.ceil(filteredMedia.value.length / MEDIA_PAGE_SIZE));
 });
 
 const paginatedMedia = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE;
-  return filteredMedia.value.slice(start, start + PAGE_SIZE);
+  const start = (currentPage.value - 1) * MEDIA_PAGE_SIZE;
+  return filteredMedia.value.slice(start, start + MEDIA_PAGE_SIZE);
 });
 
 // Reset page on search or filter change
@@ -85,27 +93,22 @@ watch([searchQuery, filter], () => {
   currentPage.value = 1;
 });
 
+// Also return to top when page number changes
+// FIXME: when last page has few items and user goes to previous page,
+// the scroll jumps to top of the page instead of the search bar.
+// if from last page to first page, no movement happens.
+watch(currentPage, () => {
+  const searchBar = document.getElementById("searchbar");
+  if (searchBar) {
+    searchBar.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+});
+
 const totalOrphanBytes = computed(() => {
   return mediaList.value
     .filter((m) => m.is_orphan)
     .reduce((acc, m) => acc + m.size_bytes, 0);
 });
-
-function formatBytes(bytes: number) {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
-
-function formatDate(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function isImage(mimeType: string) {
   return mimeType.startsWith("image/");
@@ -166,7 +169,7 @@ async function uploadFiles(files: FileList | File[]) {
     if (deduplicatedCount > 0 && newCount === 0) {
       successMessage.value = `Asset already exists in store (${deduplicatedCount} file(s) deduplicated).`;
     } else if (deduplicatedCount > 0) {
-      successMessage.value = `Uploaded ${newCount} new asset(s) (${deduplicatedCount} file(s) matched existing hash and deduplicated).`;
+      successMessage.value = `Uploaded ${newCount} new asset(s) (${deduplicatedCount} file(s) deduplicated).`;
     } else {
       successMessage.value = `Successfully uploaded ${newCount} asset(s).`;
     }
@@ -194,35 +197,53 @@ function handleDrop(e: DragEvent) {
   }
 }
 
-async function deleteSingleAsset(item: MediaUsageItem) {
-  const confirmMsg = item.is_orphan
-    ? `Permanently delete orphaned file "${item.filename}" from R2?`
-    : `WARNING: "${item.filename}" is currently referenced in ${item.referenced_in.length} post(s). Are you sure you want to permanently delete it?`;
+function promptDeleteSingleAsset(item: MediaUsageItem) {
+  assetToDelete.value = item;
+}
 
-  if (!window.confirm(confirmMsg)) return;
+function cancelDeleteAsset() {
+  if (isDeletingAsset.value) return;
+  assetToDelete.value = null;
+}
+
+async function confirmDeleteSingleAsset() {
+  if (!assetToDelete.value) return;
+
+  isDeletingAsset.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
 
   try {
-    const res = await fetch(`/api/media/${item.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/media/${assetToDelete.value.id}`, {
+      method: "DELETE",
+    });
     const data: any = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to delete asset");
-    successMessage.value = `Asset "${item.filename}" deleted successfully.`;
-    if (inspectingMedia.value?.id === item.id) {
+
+    successMessage.value = `Asset "${assetToDelete.value.filename}" deleted successfully from the database.`;
+    if (inspectingMedia.value?.id === assetToDelete.value.id) {
       inspectingMedia.value = null;
     }
+    assetToDelete.value = null;
     await fetchMedia();
   } catch (err: any) {
     errorMessage.value = err.message;
+  } finally {
+    isDeletingAsset.value = false;
   }
 }
 
-async function pruneAllOrphans() {
+function promptPruneAllOrphans() {
   if (orphanCount.value === 0) return;
+  showPruneModal.value = true;
+}
 
-  const confirmed = window.confirm(
-    `Are you sure you want to permanently delete ${orphanCount.value} orphaned media asset(s) (${formatBytes(totalOrphanBytes.value)}) from R2? This action cannot be undone.`,
-  );
-  if (!confirmed) return;
+function cancelPruneOrphans() {
+  if (isPruning.value) return;
+  showPruneModal.value = false;
+}
 
+async function confirmPruneAllOrphans() {
   isPruning.value = true;
   errorMessage.value = "";
   successMessage.value = "";
@@ -232,7 +253,8 @@ async function pruneAllOrphans() {
     const data: any = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to prune orphans");
 
-    successMessage.value = `Successfully pruned ${data.deletedCount} orphaned asset(s).`;
+    showPruneModal.value = false;
+    successMessage.value = `Successfully pruned ${data.deletedCount} orphaned asset(s) (${formatBytes(totalOrphanBytes.value)}) from the database.`;
     await fetchMedia();
   } catch (err: any) {
     errorMessage.value = err.message;
@@ -256,7 +278,6 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Header Stats Banner -->
     <div
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4"
     >
@@ -275,12 +296,12 @@ onMounted(() => {
         </span>
         <span class="text-xs text-(--text-secondary) font-mono">
           Orphaned:
-          <strong class="text-amber-400">{{ orphanCount }}</strong> ({{
-            formatBytes(totalOrphanBytes)
-          }})
+          <strong class="text-(--status-warning-text)">{{
+            orphanCount
+          }}</strong>
+          ({{ formatBytes(totalOrphanBytes) }})
         </span>
       </div>
-
       <div class="flex items-center gap-3 w-full sm:w-auto">
         <button
           type="button"
@@ -297,14 +318,12 @@ onMounted(() => {
         <button
           v-if="orphanCount > 0"
           type="button"
-          @click="pruneAllOrphans"
+          @click="promptPruneAllOrphans"
           :disabled="isPruning"
-          class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold border border-amber-600 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 transition-colors inline-flex items-center gap-1.5 font-mono"
+          class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text) hover:bg-(--status-warning-solid) hover:text-(--text-inverse) transition-colors inline-flex items-center gap-1.5 font-mono"
         >
-          <Icon icon="lucide:sparkles" class="w-3.5 h-3.5" />
-          <span>{{
-            isPruning ? "Pruning..." : `Prune ${orphanCount} Orphans`
-          }}</span>
+          <Icon icon="lucide:shredder" class="w-3.5 h-3.5" />
+          <span>{{ isPruning ? "Pruning..." : "Prune" }}</span>
         </button>
       </div>
     </div>
@@ -312,7 +331,7 @@ onMounted(() => {
     <!-- Alert Messages -->
     <div
       v-if="errorMessage"
-      class="p-3 border border-red-500 bg-red-950/30 text-red-400 text-xs font-mono"
+      class="p-3 border border-(--status-error-border) bg-(--status-error-bg) text-(--status-error-text) text-xs font-mono"
     >
       > ERROR: {{ errorMessage }}
     </div>
@@ -343,8 +362,7 @@ onMounted(() => {
           class="w-8 h-8 text-(--accent-green) mx-auto"
         />
         <div class="text-sm text-(--text-primary) font-bold font-mono">
-          Drag and drop images or media files (automatic SHA-256 deduplication
-          enabled)
+          Drag and drop media files here
         </div>
         <div class="flex flex-wrap items-center justify-center gap-4">
           <button
@@ -372,8 +390,10 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Filter & Search Controls -->
-    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+    <div
+      id="searchbar"
+      class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
+    >
       <div class="flex-1 relative">
         <Icon
           icon="lucide:search"
@@ -382,7 +402,7 @@ onMounted(() => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Filter by filename, original name, post title..."
+          placeholder="Filter by filename or post title..."
           class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-surface) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight) font-mono"
         />
       </div>
@@ -419,7 +439,7 @@ onMounted(() => {
           :class="[
             'px-3 py-1 text-xs uppercase tracking-wider transition-colors font-mono',
             filter === 'orphans'
-              ? 'bg-amber-600 text-black font-bold'
+              ? 'bg-(--status-warning-solid) text-(--text-inverse) font-bold'
               : 'text-(--text-secondary) hover:text-(--text-primary)',
           ]"
         >
@@ -433,7 +453,7 @@ onMounted(() => {
       v-if="loading && mediaList.length === 0"
       class="border border-(--border-main) bg-(--bg-surface) p-8 text-center text-(--text-muted) font-mono text-sm"
     >
-      > Scanning R2 and D1 for media references...
+      > Scanning for media...
     </div>
     <div
       v-else-if="filteredMedia.length === 0"
@@ -448,7 +468,6 @@ onMounted(() => {
           :key="item.id"
           class="border border-(--border-main) bg-(--bg-surface) flex flex-col justify-between hover:border-(--border-highlight) transition-colors group"
         >
-          <!-- Preview Area -->
           <div
             class="h-44 bg-(--bg-primary) border-b border-(--border-subtle) flex items-center justify-center overflow-hidden relative"
           >
@@ -479,13 +498,12 @@ onMounted(() => {
               }}</span>
             </div>
 
-            <!-- Status Badge -->
             <div class="absolute top-2 right-2 flex items-center gap-1.5">
               <span
                 :class="[
                   'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider backdrop-blur-sm font-mono',
                   item.is_orphan
-                    ? 'border border-amber-500 bg-amber-950/80 text-amber-300'
+                    ? 'border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text)'
                     : 'border border-(--accent-green) bg-(--bg-surface-elevated)/90 text-(--accent-green)',
                 ]"
               >
@@ -494,7 +512,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Details Area -->
           <div class="p-3 space-y-2 flex-1">
             <div
               class="text-xs font-bold text-(--text-primary) truncate font-mono"
@@ -508,8 +525,6 @@ onMounted(() => {
               <span>{{ formatBytes(item.size_bytes) }}</span>
               <span>{{ formatDate(item.created_at) }}</span>
             </div>
-
-            <!-- References link pill -->
             <div
               class="text-[11px] text-(--text-secondary) border-t border-(--border-subtle) pt-1.5 flex items-center justify-between"
             >
@@ -530,12 +545,9 @@ onMounted(() => {
               </button>
             </div>
           </div>
-
-          <!-- Action Buttons -->
           <div
             class="p-2 border-t border-(--border-subtle) bg-(--bg-surface-elevated) flex items-center justify-between gap-1.5 text-xs"
           >
-            <!-- Copy Embed Tag Button -->
             <button
               type="button"
               @click="
@@ -555,32 +567,18 @@ onMounted(() => {
                 copiedFilename === `embed-${item.id}` ? "Copied" : "Copy Embed"
               }}</span>
             </button>
-
-            <!-- Linked Posts Inspector Button -->
-            <button
-              type="button"
-              @click="openInspectModal(item)"
-              class="p-1.5 border border-(--border-main) text-(--text-secondary) hover:text-(--accent-green-bright) hover:border-(--border-highlight) inline-flex items-center"
-              :title="`Inspect ${item.referenced_in.length} linked post(s)`"
-            >
-              <Icon icon="lucide:link-2" class="w-3.5 h-3.5" />
-            </button>
-
-            <!-- Open Raw URL -->
             <a
               :href="`/media/${item.filename}`"
               target="_blank"
               class="p-1.5 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) inline-flex items-center"
-              title="Open raw file"
+              title="Open file"
             >
               <Icon icon="lucide:external-link" class="w-3.5 h-3.5" />
             </a>
-
-            <!-- Delete Asset -->
             <button
               type="button"
-              @click="deleteSingleAsset(item)"
-              class="p-1.5 border border-red-900/50 text-red-400 hover:border-red-500 hover:bg-red-950/40 inline-flex items-center"
+              @click="promptDeleteSingleAsset(item)"
+              class="p-1.5 border border-(--status-error-border) text-(--status-error-text) hover:bg-(--status-error-bg) inline-flex items-center"
               title="Delete Asset"
             >
               <Icon icon="lucide:trash-2" class="w-3.5 h-3.5" />
@@ -605,7 +603,6 @@ onMounted(() => {
           }}</strong>
           assets (Page {{ currentPage }} of {{ totalPages }})
         </div>
-
         <div class="flex items-center gap-2">
           <button
             type="button"
@@ -616,7 +613,6 @@ onMounted(() => {
             <Icon icon="lucide:arrow-left" class="w-3.5 h-3.5" />
             <span>Prev</span>
           </button>
-
           <div class="flex items-center gap-1">
             <button
               v-for="p in totalPages"
@@ -633,7 +629,6 @@ onMounted(() => {
               {{ p }}
             </button>
           </div>
-
           <button
             type="button"
             @click="currentPage = Math.min(totalPages, currentPage + 1)"
@@ -647,7 +642,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Media Reference Inspector Modal -->
+    <!-- Inspector Modal -->
     <div
       v-if="inspectingMedia"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
@@ -655,7 +650,6 @@ onMounted(() => {
       <div
         class="max-w-xl w-full border border-(--border-highlight) bg-(--bg-surface) p-6 space-y-5 shadow-2xl"
       >
-        <!-- Modal Header -->
         <div
           class="flex items-center justify-between border-b border-(--border-subtle) pb-3"
         >
@@ -673,8 +667,6 @@ onMounted(() => {
             [✕ Close]
           </button>
         </div>
-
-        <!-- Asset Overview Card -->
         <div
           class="flex items-center gap-4 p-3 bg-(--bg-primary) border border-(--border-subtle)"
         >
@@ -693,7 +685,6 @@ onMounted(() => {
               class="w-8 h-8 text-(--text-muted)"
             />
           </div>
-
           <div class="flex-1 min-w-0 space-y-1 font-mono text-xs">
             <div
               class="font-bold text-(--text-primary) truncate"
@@ -711,7 +702,7 @@ onMounted(() => {
                 :class="[
                   'px-1.5 py-0.2 text-[10px] uppercase font-bold',
                   inspectingMedia.is_orphan
-                    ? 'border border-amber-500 text-amber-300 bg-amber-950/60'
+                    ? 'border border-(--status-warning-border) text-(--status-warning-text) bg-(--status-warning-bg)'
                     : 'border border-(--accent-green) text-(--accent-green) bg-(--accent-green-glow)',
                 ]"
               >
@@ -724,25 +715,21 @@ onMounted(() => {
             </div>
           </div>
         </div>
-
-        <!-- Referencing Posts List -->
         <div class="space-y-3">
           <div
             class="text-xs uppercase tracking-wider font-mono text-(--text-secondary) font-bold"
           >
             Posts Referencing This Asset:
           </div>
-
           <div
             v-if="inspectingMedia.referenced_in.length === 0"
-            class="p-4 border border-amber-500/40 bg-amber-950/20 text-amber-300 text-xs font-mono space-y-1"
+            class="p-4 border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text) text-xs font-mono space-y-1"
           >
             <div>> No articles currently reference this media file.</div>
             <div class="text-[11px] text-(--text-muted)">
               This asset is an orphan and safe to delete or prune.
             </div>
           </div>
-
           <div
             v-else
             class="max-h-60 overflow-y-auto space-y-2 border border-(--border-subtle) bg-(--bg-primary) p-3"
@@ -750,59 +737,246 @@ onMounted(() => {
             <div
               v-for="post in inspectingMedia.referenced_in"
               :key="post.id"
-              class="p-2.5 border border-(--border-subtle) bg-(--bg-surface-elevated) hover:border-(--border-highlight) transition-colors flex items-center justify-between gap-3"
+              class="p-2 border border-(--border-subtle) bg-(--bg-surface) flex items-center justify-between text-xs font-mono"
             >
-              <div class="min-w-0 flex-1 font-mono">
-                <div class="text-xs font-bold text-(--text-primary) truncate">
+              <div class="space-y-0.5 truncate">
+                <div class="font-bold text-(--text-primary) truncate">
                   {{ post.title }}
                 </div>
-                <div class="text-[11px] text-(--text-muted) truncate">
+                <div class="text-[10px] text-(--text-muted)">
                   /posts/{{ post.slug }}
                 </div>
               </div>
-
-              <div class="flex items-center gap-2 shrink-0">
-                <a
-                  :href="`/posts/${post.slug}`"
-                  target="_blank"
-                  class="px-2 py-1 text-xs border border-(--border-main) text-(--accent-green) hover:border-(--accent-green) hover:bg-(--accent-green-glow) inline-flex items-center gap-1 font-mono"
-                >
-                  <Icon icon="lucide:external-link" class="w-3 h-3" />
-                  <span>View Post</span>
-                </a>
-              </div>
+              <span
+                :class="[
+                  'px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-wider shrink-0 ml-2',
+                  post.status === 'published'
+                    ? 'border border-(--accent-green) text-(--accent-green)'
+                    : 'border border-(--status-warning-border) text-(--status-warning-text)',
+                ]"
+              >
+                {{ post.status }}
+              </span>
             </div>
           </div>
         </div>
-
-        <!-- Modal Footer Actions -->
-        <div
-          class="flex items-center justify-between pt-3 border-t border-(--border-subtle) font-mono text-xs"
-        >
-          <button
-            type="button"
-            @click="
-              copyToClipboard(
-                `![[${inspectingMedia.filename}]]`,
-                `modal-copy-${inspectingMedia.id}`,
-              )
-            "
-            class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) inline-flex items-center gap-1.5"
-          >
-            <Icon icon="lucide:copy" class="w-3.5 h-3.5" />
-            <span>{{
-              copiedFilename === `modal-copy-${inspectingMedia.id}`
-                ? "Copied Embed Tag!"
-                : "Copy Embed Tag"
-            }}</span>
-          </button>
-
+        <div class="flex justify-end pt-2 border-t border-(--border-subtle)">
           <button
             type="button"
             @click="closeInspectModal"
-            class="px-4 py-1.5 bg-(--accent-green) text-(--text-inverse) font-bold uppercase tracking-wider hover:bg-(--accent-green-bright)"
+            class="px-4 py-2 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors font-mono text-xs"
           >
-            Done
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Single Asset Modal -->
+    <div
+      v-if="assetToDelete"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-(--modal-overlay-bg) p-4 font-mono text-xs"
+    >
+      <div
+        class="max-w-lg w-full border border-(--status-error-border) bg-(--bg-surface) p-6 space-y-5 shadow-2xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-(--border-subtle) pb-3"
+        >
+          <div
+            class="flex items-center gap-2 text-(--status-error-text) font-bold text-sm"
+          >
+            <Icon icon="lucide:alert-triangle" class="w-4 h-4" />
+            <span>// CONFIRM_ASSET_DELETION // DESTRUCTIVE_ACTION</span>
+          </div>
+          <button
+            type="button"
+            @click="cancelDeleteAsset"
+            :disabled="isDeletingAsset"
+            class="text-(--text-muted) hover:text-(--text-primary)"
+          >
+            [✕]
+          </button>
+        </div>
+        <div
+          class="p-4 border border-(--border-subtle) bg-(--bg-primary) space-y-2"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-xs uppercase text-(--text-muted)"
+              >Target Asset:</span
+            >
+            <span
+              :class="[
+                'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider',
+                assetToDelete.is_orphan
+                  ? 'border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text)'
+                  : 'border border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green)',
+              ]"
+            >
+              {{
+                assetToDelete.is_orphan
+                  ? "Orphan"
+                  : `In Use (${assetToDelete.referenced_in.length} Post${assetToDelete.referenced_in.length === 1 ? "" : "s"})`
+              }}
+            </span>
+          </div>
+          <div
+            class="w-16 h-16 bg-(--bg-surface-elevated) border border-(--border-subtle) flex items-center justify-center shrink-0 overflow-hidden"
+          >
+            <img
+              v-if="isImage(assetToDelete.mime_type)"
+              :src="`/media/${assetToDelete.filename}`"
+              :alt="assetToDelete.original_name"
+              class="w-full h-full object-contain"
+            />
+            <Icon
+              v-else
+              icon="lucide:file"
+              class="w-8 h-8 text-(--text-muted)"
+            />
+          </div>
+          <div
+            class="font-bold text-(--text-primary) text-sm truncate"
+            :title="assetToDelete.filename"
+          >
+            {{ assetToDelete.filename }}
+          </div>
+          <div class="text-[11px] text-(--text-muted) flex items-center gap-4">
+            <span>{{ formatBytes(assetToDelete.size_bytes) }}</span>
+            <span>{{ assetToDelete.mime_type }}</span>
+            <span>{{ formatDate(assetToDelete.created_at) }}</span>
+          </div>
+        </div>
+        <div
+          v-if="!assetToDelete.is_orphan"
+          class="p-3 border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text) space-y-1"
+        >
+          <div class="font-bold">> WARNING: File is currently referenced!</div>
+          <div class="text-[11px] text-(--text-secondary)">
+            This asset is currently embedded in
+            {{ assetToDelete.referenced_in.length }} post(s). Deleting it will
+            result in broken Wikilinks on those articles. Consider removing the
+            references before deleting this file.
+          </div>
+        </div>
+        <div
+          v-else
+          class="p-3 border border-(--status-error-border) bg-(--status-error-bg) text-(--status-error-text) space-y-1"
+        >
+          <div class="font-bold">> Delete asset from database.</div>
+          <div class="text-[11px] text-(--text-secondary)">
+            This file will be permanently deleted from the database. This
+            process is irreversible and cannot be undone.
+          </div>
+        </div>
+        <div
+          class="flex items-center justify-end gap-3 pt-3 border-t border-(--border-subtle)"
+        >
+          <button
+            type="button"
+            @click="cancelDeleteAsset"
+            :disabled="isDeletingAsset"
+            class="px-4 py-2 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmDeleteSingleAsset"
+            :disabled="isDeletingAsset"
+            class="px-4 py-2 bg-(--status-error-solid) hover:bg-(--status-error-solid-hover) text-(--text-inverse) font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            <Icon
+              :icon="isDeletingAsset ? 'lucide:rotate-cw' : 'lucide:trash-2'"
+              :class="['w-3.5 h-3.5', isDeletingAsset ? 'animate-spin' : '']"
+            />
+            <span>{{
+              isDeletingAsset ? "Deleting..." : "Delete Permanently"
+            }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Prune Orphans Modal -->
+    <div
+      v-if="showPruneModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-(--modal-overlay-bg) p-4 font-mono text-xs"
+    >
+      <div
+        class="max-w-lg w-full border border-(--status-warning-border) bg-(--bg-surface) p-6 space-y-5 shadow-2xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-(--border-subtle) pb-3"
+        >
+          <div
+            class="flex items-center gap-2 text-(--status-warning-text) font-bold text-sm"
+          >
+            <Icon icon="lucide:shredder" class="w-4 h-4" />
+            <span>// CONFIRM_ORPHAN_PRUNING</span>
+          </div>
+          <button
+            type="button"
+            @click="cancelPruneOrphans"
+            :disabled="isPruning"
+            class="text-(--text-muted) hover:text-(--text-primary)"
+          >
+            [✕]
+          </button>
+        </div>
+        <div
+          class="p-4 border border-(--border-subtle) bg-(--bg-primary) space-y-2"
+        >
+          <div class="text-xs uppercase text-(--text-muted)">
+            Pruning Summary:
+          </div>
+          <div class="text-base font-bold text-(--status-warning-text)">
+            {{ orphanCount }} Orphaned Asset(s)
+          </div>
+          <div class="text-xs text-(--text-secondary)">
+            Will be deleting a total of
+            <strong class="text-(--text-primary)">{{
+              formatBytes(totalOrphanBytes)
+            }}</strong>
+            worth of files.
+          </div>
+        </div>
+        <div
+          class="p-3 border border-(--status-warning-border) bg-(--status-warning-bg) text-(--status-warning-text) space-y-1 leading-relaxed"
+        >
+          <div class="font-bold">
+            > Permanently delete all unreferenced assets.
+          </div>
+          <div class="text-[11px] text-(--text-secondary)">
+            These files have no active markdown links in any published or
+            drafted posts. This process is irreversible. Once deleted, they
+            cannot be recovered.
+          </div>
+        </div>
+        <div
+          class="flex items-center justify-end gap-3 pt-3 border-t border-(--border-subtle)"
+        >
+          <button
+            type="button"
+            @click="cancelPruneOrphans"
+            :disabled="isPruning"
+            class="px-4 py-2 border border-(--border-main) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-highlight) transition-colors disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmPruneAllOrphans"
+            :disabled="isPruning"
+            class="px-4 py-2 bg-(--status-warning-solid) hover:bg-(--status-warning-solid-hover) text-(--text-inverse) font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            <Icon
+              :icon="isPruning ? 'lucide:rotate-cw' : 'lucide:trash-2'"
+              :class="['w-3.5 h-3.5', isPruning ? 'animate-spin' : '']"
+            />
+            <span>{{
+              isPruning ? "Pruning Assets..." : `Prune ${orphanCount} Orphans`
+            }}</span>
           </button>
         </div>
       </div>

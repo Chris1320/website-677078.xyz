@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { Icon } from "@iconify/vue";
+
 import type { PostItem } from "./PostList.vue";
+import { formatDate, slugify } from "../../lib/utils";
 
 const props = defineProps<{
   initialPost?: PostItem | null;
@@ -19,6 +21,7 @@ const slug = ref(props.initialPost?.slug || "");
 const description = ref(props.initialPost?.description || "");
 const content = ref(props.initialPost?.content || "");
 const status = ref<"draft" | "published">(props.initialPost?.status || "draft");
+const publishedAt = ref<any>(props.initialPost?.published_at || null);
 const tags = ref<string[]>(props.initialPost?.tags?.map((t) => t.name) || []);
 const tagInput = ref("");
 
@@ -36,17 +39,6 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 let slugManuallyEdited = isEditing.value;
-
-function slugify(text: string): string {
-  return (
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "post"
-  );
-}
 
 watch(title, (newTitle) => {
   if (!slugManuallyEdited) {
@@ -83,7 +75,6 @@ function handleTagKeyDown(e: KeyboardEvent) {
   }
 }
 
-// Live Preview Debounce
 let previewTimeout: any = null;
 function fetchPreview() {
   if (previewTimeout) clearTimeout(previewTimeout);
@@ -100,7 +91,7 @@ function fetchPreview() {
         data.html || '<p class="text-[var(--text-muted)]">> Empty document</p>';
     } catch {
       previewHtml.value =
-        '<p class="text-red-400">> Failed to render preview</p>';
+        '<p class="text-(--status-error-text)">> Failed to render preview</p>';
     } finally {
       isRenderingPreview.value = false;
     }
@@ -115,7 +106,6 @@ onMounted(() => {
   fetchPreview();
 });
 
-// Cursor insertion helper
 function insertTextAtCursor(
   prefix: string,
   suffix: string = "",
@@ -141,7 +131,6 @@ function insertTextAtCursor(
   }, 0);
 }
 
-// File Upload Handler
 async function uploadFile(file: File) {
   isUploading.value = true;
   uploadStatus.value = `Uploading ${file.name}...`;
@@ -244,15 +233,17 @@ const initialMediaRefs = ref<string[]>(
   extractRefs(props.initialPost?.content || ""),
 );
 const showOrphanModal = ref(false);
+const showPublishedDateModal = ref(false);
 const pendingPublishStatus = ref<"draft" | "published">("draft");
 const orphanedFilesToPrompt = ref<string[]>([]);
 
-// Save & Publish
 function savePost(publishStatus: "draft" | "published") {
   if (!title.value.trim()) {
     errorMessage.value = "Please enter a post title.";
     return;
   }
+
+  pendingPublishStatus.value = publishStatus;
 
   if (isEditing.value) {
     const currentRefs = extractRefs(content.value);
@@ -261,13 +252,25 @@ function savePost(publishStatus: "draft" | "published") {
     );
     if (removed.length > 0) {
       orphanedFilesToPrompt.value = removed;
-      pendingPublishStatus.value = publishStatus;
       showOrphanModal.value = true;
       return;
     }
   }
 
-  executeSave(publishStatus);
+  proceedAfterOrphanCheck();
+}
+
+function proceedAfterOrphanCheck() {
+  if (
+    isEditing.value &&
+    publishedAt.value &&
+    pendingPublishStatus.value === "published"
+  ) {
+    showPublishedDateModal.value = true;
+    return;
+  }
+
+  executeSave(pendingPublishStatus.value, false);
 }
 
 async function confirmSaveWithOrphanChoice(deleteOrphans: boolean) {
@@ -283,11 +286,19 @@ async function confirmSaveWithOrphanChoice(deleteOrphans: boolean) {
       console.error("Failed to delete orphans:", delErr);
     }
   }
-  await executeSave(pendingPublishStatus.value);
+  proceedAfterOrphanCheck();
   initialMediaRefs.value = extractRefs(content.value);
 }
 
-async function executeSave(publishStatus: "draft" | "published") {
+async function confirmPublishedDateChoice(updatePublishedDate: boolean) {
+  showPublishedDateModal.value = false;
+  await executeSave(pendingPublishStatus.value, updatePublishedDate);
+}
+
+async function executeSave(
+  publishStatus: "draft" | "published",
+  updatePublishedDate: boolean = false,
+) {
   isSaving.value = true;
   errorMessage.value = "";
   successMessage.value = "";
@@ -299,6 +310,7 @@ async function executeSave(publishStatus: "draft" | "published") {
     content: content.value,
     status: publishStatus,
     tags: tags.value,
+    updatePublishedDate,
   };
 
   try {
@@ -322,6 +334,7 @@ async function executeSave(publishStatus: "draft" | "published") {
     isEditing.value = true;
     postId.value = data.post.id;
     slug.value = data.post.slug;
+    publishedAt.value = data.post.published_at;
     initialMediaRefs.value = extractRefs(content.value);
 
     successMessage.value =
@@ -344,7 +357,6 @@ async function executeSave(publishStatus: "draft" | "published") {
 
 <template>
   <div class="space-y-6">
-    <!-- Top Action Bar -->
     <div
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4"
     >
@@ -367,7 +379,7 @@ async function executeSave(publishStatus: "draft" | "published") {
             'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider',
             status === 'published'
               ? 'border border-(--accent-green) text-(--accent-green) bg-(--accent-green-glow)'
-              : 'border border-amber-500/50 text-amber-400 bg-amber-950/30',
+              : 'border border-(--status-warning-border) text-(--status-warning-text) bg-(--status-warning-bg)',
           ]"
         >
           {{ status }}
@@ -407,7 +419,7 @@ async function executeSave(publishStatus: "draft" | "published") {
     <!-- Alert Messages -->
     <div
       v-if="errorMessage"
-      class="p-3 border border-red-500 bg-red-950/30 text-red-400 text-xs"
+      class="p-3 border border-(--status-error-border) bg-(--status-error-bg) text-(--status-error-text) text-xs font-mono"
     >
       > ERROR: {{ errorMessage }}
     </div>
@@ -424,7 +436,6 @@ async function executeSave(publishStatus: "draft" | "published") {
       > UPLOAD: {{ uploadStatus }}
     </div>
 
-    <!-- Metadata Fields -->
     <div
       class="grid grid-cols-1 md:grid-cols-2 gap-4 border border-(--border-main) bg-(--bg-surface) p-4"
     >
@@ -433,12 +444,12 @@ async function executeSave(publishStatus: "draft" | "published") {
           <label
             class="block text-xs uppercase tracking-wider text-(--text-secondary) mb-1"
           >
-            Post Title *
+            Title *
           </label>
           <input
             v-model="title"
             type="text"
-            placeholder="e.g. Building an Edge Blog with Cloudflare"
+            placeholder="Enter your post title here"
             class="w-full px-3 py-1.5 text-sm bg-(--bg-primary) border border-(--border-main) text-(--text-primary) focus:outline-none focus:border-(--border-highlight) font-bold"
           />
         </div>
@@ -446,7 +457,7 @@ async function executeSave(publishStatus: "draft" | "published") {
           <label
             class="block text-xs uppercase tracking-wider text-(--text-secondary) mb-1"
           >
-            Slug URL
+            Slug
           </label>
           <div class="flex items-center">
             <span
@@ -470,12 +481,12 @@ async function executeSave(publishStatus: "draft" | "published") {
           <label
             class="block text-xs uppercase tracking-wider text-(--text-secondary) mb-1"
           >
-            Excerpt / Description
+            Description
           </label>
           <input
             v-model="description"
             type="text"
-            placeholder="Brief summary shown in blog list and metadata..."
+            placeholder="Brief summary of the post"
             class="w-full px-3 py-1.5 text-sm bg-(--bg-primary) border border-(--border-main) text-(--text-primary) focus:outline-none focus:border-(--border-highlight)"
           />
         </div>
@@ -498,7 +509,7 @@ async function executeSave(publishStatus: "draft" | "published") {
               <button
                 type="button"
                 @click="removeTag(index)"
-                class="hover:text-red-400 text-xs font-bold"
+                class="hover:text-(--status-error-text) text-xs font-bold"
               >
                 &times;
               </button>
@@ -516,15 +527,14 @@ async function executeSave(publishStatus: "draft" | "published") {
       </div>
     </div>
 
-    <!-- Editor Toolbar & View Controls -->
+    <!-- Editor Controls -->
     <div
       class="flex flex-wrap items-center justify-between gap-2 border border-(--border-main) bg-(--bg-surface-elevated) p-2"
     >
-      <!-- Formatting Buttons -->
       <div class="flex flex-wrap items-center gap-1">
         <button
           type="button"
-          @click="insertTextAtCursor('**', '**', 'bold text')"
+          @click="insertTextAtCursor('**', '**', '')"
           class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Bold"
         >
@@ -532,11 +542,27 @@ async function executeSave(publishStatus: "draft" | "published") {
         </button>
         <button
           type="button"
-          @click="insertTextAtCursor('*', '*', 'italic text')"
+          @click="insertTextAtCursor('*', '*', '')"
           class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Italic"
         >
           <Icon icon="lucide:italic" class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('<u>', '</u>', '')"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
+          title="Underline"
+        >
+          <Icon icon="lucide:underline" class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('# ', '', 'Heading')"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
+          title="Heading 1"
+        >
+          <Icon icon="lucide:heading-1" class="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
@@ -548,9 +574,39 @@ async function executeSave(publishStatus: "draft" | "published") {
         </button>
         <button
           type="button"
-          @click="
-            insertTextAtCursor('```typescript\n', '\n```', '// code here')
-          "
+          @click="insertTextAtCursor('### ', '', 'Heading')"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
+          title="Heading 3"
+        >
+          <Icon icon="lucide:heading-3" class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('#### ', '', 'Heading')"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
+          title="Heading 4"
+        >
+          <Icon icon="lucide:heading-4" class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('##### ', '', 'Heading')"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
+          title="Heading 5"
+        >
+          <Icon icon="lucide:heading-5" class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('###### ', '', 'Heading')"
+          class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
+          title="Heading 6"
+        >
+          <Icon icon="lucide:heading-6" class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          @click="insertTextAtCursor('```\n', '\n```', '// your code here')"
           class="p-1.5 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--text-primary) inline-flex items-center"
           title="Code Block"
         >
@@ -560,7 +616,7 @@ async function executeSave(publishStatus: "draft" | "published") {
           type="button"
           @click="insertTextAtCursor('[[', ']]', 'post-slug')"
           class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-(--accent-green) inline-flex items-center gap-1"
-          title="Obsidian Wikilink [[slug]]"
+          title="Wikilink [[slug]]"
         >
           <Icon icon="lucide:link-2" class="w-3.5 h-3.5" />
           <span>[[Link]]</span>
@@ -569,14 +625,14 @@ async function executeSave(publishStatus: "draft" | "published") {
           type="button"
           @click="insertTextAtCursor('> [!NOTE] Title\n> ', '', 'Content')"
           class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-cyan-400 inline-flex items-center gap-1"
-          title="Obsidian Callout"
+          title="Callout"
         >
           <Icon icon="lucide:message-square" class="w-3.5 h-3.5" />
           <span>[!Note]</span>
         </button>
         <button
           type="button"
-          @click="insertTextAtCursor('$\n', '\n$', 'E=mc^2')"
+          @click="insertTextAtCursor('$', '$', 'E=mc^2')"
           class="px-2 py-1 text-xs border border-(--border-main) hover:bg-(--bg-surface) text-purple-400 inline-flex items-center gap-1"
           title="Math Formula"
         >
@@ -586,7 +642,6 @@ async function executeSave(publishStatus: "draft" | "published") {
 
         <span class="w-px h-4 bg-(--border-main) mx-1"></span>
 
-        <!-- Upload File Button -->
         <input
           ref="fileInputRef"
           type="file"
@@ -599,7 +654,7 @@ async function executeSave(publishStatus: "draft" | "published") {
           @click="triggerFilePicker"
           :disabled="isUploading"
           class="px-2.5 py-1 text-xs border border-(--accent-green-dim) text-(--accent-green-bright) hover:bg-(--accent-green-glow) inline-flex items-center gap-1.5"
-          title="Upload image or video"
+          title="Upload media"
         >
           <Icon icon="lucide:upload-cloud" class="w-3.5 h-3.5" />
           <span>{{ isUploading ? "Uploading..." : "Upload Media" }}</span>
@@ -629,7 +684,7 @@ async function executeSave(publishStatus: "draft" | "published") {
               : 'text-(--text-secondary) hover:text-(--text-primary)',
           ]"
         >
-          Editor Only
+          Editor
         </button>
         <button
           type="button"
@@ -641,7 +696,7 @@ async function executeSave(publishStatus: "draft" | "published") {
               : 'text-(--text-secondary) hover:text-(--text-primary)',
           ]"
         >
-          Split View
+          Split
         </button>
         <button
           type="button"
@@ -653,12 +708,12 @@ async function executeSave(publishStatus: "draft" | "published") {
               : 'text-(--text-secondary) hover:text-(--text-primary)',
           ]"
         >
-          Preview Only
+          Preview
         </button>
       </div>
     </div>
 
-    <!-- Main Workspace (Split / Editor / Preview) -->
+    <!-- Main Workspace -->
     <div
       class="grid border border-(--border-main) bg-(--bg-surface) min-h-125"
       :class="[
@@ -675,7 +730,7 @@ async function executeSave(publishStatus: "draft" | "published") {
         <div
           class="p-2 border-b border-(--border-subtle) bg-(--bg-surface-elevated) flex items-center justify-between text-xs text-(--text-muted)"
         >
-          <span>Obsidian Markdown (Drag-and-drop or paste images here)</span>
+          <span>Markdown</span>
           <span>{{ content.split(/\s+/).filter(Boolean).length }} words</span>
         </div>
         <textarea
@@ -683,7 +738,7 @@ async function executeSave(publishStatus: "draft" | "published") {
           v-model="content"
           @drop.prevent="handleDrop"
           @paste="handlePaste"
-          placeholder="# Post title&#10;&#10;Start writing your Obsidian Markdown post...&#10;&#10;Use [[wikilinks]], ![[media.png]], and > [!NOTE] callouts."
+          placeholder="# Title&#10;&#10;Start writing your post..."
           class="w-full flex-1 p-4 bg-(--bg-primary) text-(--text-primary) font-mono text-sm leading-relaxed focus:outline-none resize-none min-h-112.5"
         ></textarea>
       </div>
@@ -696,7 +751,7 @@ async function executeSave(publishStatus: "draft" | "published") {
         <div
           class="p-2 border-b border-(--border-subtle) bg-(--bg-surface-elevated) flex items-center justify-between text-xs text-(--text-muted)"
         >
-          <span>Live Rendered Preview</span>
+          <span>Preview</span>
           <span v-if="isRenderingPreview" class="text-(--accent-green)"
             >> Rendering...</span
           >
@@ -711,15 +766,18 @@ async function executeSave(publishStatus: "draft" | "published") {
     <!-- Orphan Removal Confirmation Modal -->
     <div
       v-if="showOrphanModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-(--modal-overlay-bg) p-4"
     >
       <div
-        class="max-w-lg w-full border border-amber-500 bg-(--bg-surface) p-6 space-y-4 shadow-2xl"
+        class="max-w-lg w-full border border-(--status-warning-border) bg-(--bg-surface) p-6 space-y-4 shadow-2xl font-mono"
       >
         <div
-          class="flex items-center gap-2 text-amber-400 text-sm font-bold uppercase tracking-wider"
+          class="flex items-center gap-2 text-(--status-warning-text) text-sm font-bold uppercase tracking-wider"
         >
-          <Icon icon="lucide:alert-triangle" class="w-4 h-4 text-amber-400" />
+          <Icon
+            icon="lucide:alert-triangle"
+            class="w-4 h-4 text-(--status-warning-text)"
+          />
           <span>[ORPHANED_MEDIA_DETECTED]</span>
         </div>
 
@@ -734,15 +792,18 @@ async function executeSave(publishStatus: "draft" | "published") {
           <div
             v-for="filename in orphanedFilesToPrompt"
             :key="filename"
-            class="text-xs font-mono text-amber-300 truncate"
+            class="text-xs font-mono text-(--status-warning-text) truncate"
           >
             • {{ filename }}
           </div>
         </div>
 
         <p class="text-xs text-(--text-secondary)">
-          Would you like to permanently delete these unreferenced files from R2
-          storage, or keep them stored?
+          Would you like to keep them or
+          <span class="font-bold text-(--status-error-text)"
+            >permanently delete</span
+          >
+          these unreferenced files from storage?
         </p>
 
         <div
@@ -760,14 +821,106 @@ async function executeSave(publishStatus: "draft" | "published") {
             @click="confirmSaveWithOrphanChoice(false)"
             class="px-3 py-1.5 text-xs uppercase tracking-wider border border-(--border-highlight) text-(--text-primary) hover:bg-(--bg-surface-elevated)"
           >
-            Keep in R2 & Save
+            Keep & Save
           </button>
           <button
             type="button"
             @click="confirmSaveWithOrphanChoice(true)"
-            class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold bg-amber-600 text-black hover:bg-amber-500"
+            class="px-3 py-1.5 text-xs uppercase tracking-wider font-bold bg-(--status-warning-solid) text-(--text-inverse) hover:bg-(--status-warning-solid-hover)"
           >
-            Delete From R2 & Save
+            Delete & Save
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      v-if="showPublishedDateModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-(--modal-overlay-bg) p-4 font-mono text-xs"
+    >
+      <div
+        class="max-w-lg w-full border border-(--border-main) bg-(--bg-surface) p-6 space-y-5 shadow-2xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-(--border-subtle) pb-3"
+        >
+          <div
+            class="flex items-center gap-2 text-(--accent-green) font-bold text-sm"
+          >
+            <Icon icon="lucide:calendar" class="w-4 h-4" />
+            <span>// UPDATE_PUBLISHED_DATE</span>
+          </div>
+          <button
+            type="button"
+            @click="showPublishedDateModal = false"
+            :disabled="isSaving"
+            class="text-(--text-muted) hover:text-(--text-primary)"
+          >
+            [✕]
+          </button>
+        </div>
+        <div
+          class="p-4 border border-(--border-subtle) bg-(--bg-primary) space-y-2"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs uppercase text-(--text-muted)">
+              Target Article:
+            </span>
+            <span
+              class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider border border-(--accent-green) text-(--accent-green) bg-(--accent-green-glow)"
+            >
+              Published
+            </span>
+          </div>
+          <div class="text-sm font-bold text-(--text-primary)">
+            {{ title }}
+          </div>
+          <div
+            class="text-[11px] text-(--text-muted) pt-1 border-t border-(--border-subtle) flex items-center justify-between"
+          >
+            <span>Original Published Date:</span>
+            <strong class="text-(--text-secondary)">{{
+              formatDate(publishedAt)
+            }}</strong>
+          </div>
+        </div>
+        <div
+          class="p-3 border border-(--border-subtle) bg-(--bg-surface-elevated) text-(--text-secondary) space-y-1 leading-relaxed"
+        >
+          <div class="font-bold text-(--text-primary)">
+            > Would you like to update the published date as well?
+          </div>
+          <div class="text-[11px]">
+            You can keep the original publication timestamp or update it to the
+            current time.
+          </div>
+        </div>
+        <div
+          class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-(--border-subtle)"
+        >
+          <button
+            type="button"
+            @click="showPublishedDateModal = false"
+            :disabled="isSaving"
+            class="px-3 py-1.5 border border-(--border-main) text-(--text-muted) hover:text-(--text-primary) transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmPublishedDateChoice(false)"
+            :disabled="isSaving"
+            class="px-3 py-1.5 border border-(--border-highlight) text-(--text-primary) hover:bg-(--bg-surface-elevated) transition-colors"
+          >
+            Keep Original Date
+          </button>
+          <button
+            type="button"
+            @click="confirmPublishedDateChoice(true)"
+            :disabled="isSaving"
+            class="px-3 py-1.5 bg-(--accent-green) hover:bg-(--accent-green-bright) text-(--text-inverse) font-bold uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-1.5"
+          >
+            <Icon icon="lucide:clock" class="w-3.5 h-3.5" />
+            <span>Update Date & Save</span>
           </button>
         </div>
       </div>
@@ -802,7 +955,7 @@ async function executeSave(publishStatus: "draft" | "published") {
 :deep(.code-block-wrapper) {
   margin: 1.25rem 0;
   border: 1px solid var(--border-main);
-  background: #121212;
+  background: var(--bg-surface-elevated);
   overflow-x: auto;
 }
 
