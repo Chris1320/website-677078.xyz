@@ -9,7 +9,7 @@ export const prerender = false;
 ---
 
 <Layout
-  title="404: Page Not Found | CFN"
+  title="Page Not Found | CFN"
   description="The requested page could not be located."
 >
   <div class="content space-y-8">
@@ -22,7 +22,7 @@ export const prerender = false;
 │   ---   │
 └─────────┘</pre>
         <div class="space-y-2 font-mono">
-          <div class="text-xs uppercase tracking-wider font-bold text-red-400 bg-red-950/40 border border-red-800/60 px-2 py-0.5 inline-block">
+          <div class="text-xs uppercase tracking-wider font-bold text-(--status-error-text) bg-(--status-error-bg) border border-(--status-error-border) px-2 py-0.5 inline-block">
             HTTP_STATUS_404 // NOT_FOUND
           </div>
           <h1 class="text-xl sm:text-2xl font-bold text-(--text-primary)">
@@ -42,13 +42,14 @@ export const prerender = false;
           <Icon name="lucide:home" class="w-3.5 h-3.5" />
           <span>Return to Home</span>
         </a>
-        <a
-          class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-(--accent-yellow) text-(--text-inverse) hover:bg-(--accent-yellow-bright) transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+        <button
+          type="button"
+          class="px-4 py-2 text-xs uppercase tracking-wider font-bold text-(--text-secondary) hover:text-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5 cursor-pointer"
           onclick="history.back()"
-          >
+        >
           <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
           <span>Back to Previous Page</span>
-        </a>
+        </button>
       </div>
     </section>
   </div>

@@ -2,9 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 import AsciiTitle from '../components/AsciiTitle.astro';
 import { Icon } from 'astro-icon/components';
-import { eq, desc, count, countDistinct } from 'drizzle-orm';
+import { eq, desc, count, countDistinct, inArray } from 'drizzle-orm';
 import { getDb, posts, tags, post_tags } from '../db';
 import { calculateReadingTime } from '../lib/markdown';
+import { formatDate } from '../lib/utils';
+import { HOMEPAGE_RECENT_POSTS_LIMIT } from '../lib/info';
 
 export const prerender = false;
 
@@ -29,7 +31,7 @@ try {
     publishedCount = postCountRes.count || 0;
   }
 
-  // 2. Query distinct active tags count on published posts
+  // 2. Query active tags count on published posts
   const tagsCountRes = await db
     .select({ count: countDistinct(post_tags.tag_id) })
     .from(post_tags)
@@ -55,7 +57,7 @@ try {
     .from(posts)
     .where(eq(posts.status, 'published'))
     .orderBy(desc(posts.published_at), desc(posts.created_at))
-    .limit(5)
+    .limit(HOMEPAGE_RECENT_POSTS_LIMIT)
     .all();
 
   if (latestPublishedPosts.length > 0) {
@@ -74,16 +76,19 @@ try {
 
     // 4. Fetch tags for the latest 5 posts
     const postIds = latestPublishedPosts.map((p) => p.id);
-    const relatedTags = await db
-      .select({
-        post_id: post_tags.post_id,
-        tag_id: tags.id,
-        tag_name: tags.name,
-        tag_slug: tags.slug,
-      })
-      .from(post_tags)
-      .innerJoin(tags, eq(post_tags.tag_id, tags.id))
-      .all();
+    const relatedTags = postIds.length > 0
+      ? await db
+          .select({
+            post_id: post_tags.post_id,
+            tag_id: tags.id,
+            tag_name: tags.name,
+            tag_slug: tags.slug,
+          })
+          .from(post_tags)
+          .innerJoin(tags, eq(post_tags.tag_id, tags.id))
+          .where(inArray(post_tags.post_id, postIds))
+          .all()
+      : [];
 
     const tagsByPostId: Record<string, { id: string; name: string; slug: string }[]> = {};
     for (const pt of relatedTags) {
@@ -106,87 +111,62 @@ try {
 } catch (err) {
   console.error('Error fetching homepage stats:', err);
 }
-
-function formatDate(timestamp: number | Date | null | undefined) {
-  if (!timestamp) return '';
-  const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 ---
 
 <Layout
   title="CFN | 67 70 78"
-  description="Security research, distributed systems, and technical publications."
+  description="ChrisFromNowhere's personal blog"
 >
   <div class="content space-y-8">
     <AsciiTitle />
-
-    <!-- Three-Column Stats Section -->
-    <section class="border border-[var(--border-main)] bg-[var(--bg-surface)] p-6 sm:p-8 space-y-6">
-      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+    <section class="border border-(--border-main) bg-(--bg-surface) p-6 sm:p-8 space-y-6">
+      <div class="flex items-center justify-between border-b border-(--border-subtle) pb-3">
         <div class="flex items-center gap-2">
-          <Icon name="lucide:activity" class="w-4 h-4 text-[var(--accent-green)]" />
-          <span class="text-xs uppercase tracking-widest text-[var(--accent-green)] font-mono font-bold">
-            // TELEMETRY // SYSTEM_METRICS
+          <Icon name="lucide:activity" class="w-4 h-4 text-(--accent-green)" />
+          <span class="text-xs uppercase tracking-widest text-(--accent-green) font-mono font-bold">
+            // SYSTEM_METRICS
           </span>
         </div>
-        <span class="text-[11px] font-mono text-[var(--text-muted)]">
-          NODE: 677078.XYZ
+        <span class="text-[11px] font-mono text-(--text-muted)">
+            // 677078.XYZ
         </span>
       </div>
-
-      <!-- Stats Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <!-- Stat 1: Published Posts -->
-        <div class="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-5 space-y-2 hover:border-[var(--border-highlight)] transition-colors">
-          <div class="flex items-center justify-between text-[var(--text-secondary)]">
+        <div class="border border-(--border-subtle) bg-(--bg-surface-elevated) p-5 space-y-2 hover:border-(--border-highlight) transition-colors">
+          <div class="flex items-center justify-between text-(--text-secondary)">
             <span class="text-[11px] uppercase tracking-wider font-mono">
               Published Posts
             </span>
-            <Icon name="lucide:book-open" class="w-4 h-4 text-[var(--accent-green)]" />
+            <Icon name="lucide:book-open" class="w-4 h-4 text-(--accent-green)" />
           </div>
-          <div class="text-2xl sm:text-3xl font-bold font-mono text-[var(--text-primary)]">
+          <div class="text-2xl sm:text-3xl font-bold font-mono text-(--text-primary)">
             {publishedCount}
           </div>
-          <div class="text-[11px] font-mono text-[var(--text-muted)]">
-            {publishedCount === 1 ? '1 published article' : `${publishedCount} published articles`}
-          </div>
         </div>
-
-        <!-- Stat 2: Active Topics / Tags -->
-        <div class="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-5 space-y-2 hover:border-[var(--border-highlight)] transition-colors">
-          <div class="flex items-center justify-between text-[var(--text-secondary)]">
+        <div class="border border-(--border-subtle) bg-(--bg-surface-elevated) p-5 space-y-2 hover:border-(--border-highlight) transition-colors">
+          <div class="flex items-center justify-between text-(--text-secondary)">
             <span class="text-[11px] uppercase tracking-wider font-mono">
-              Active Topics
+              Total Tags
             </span>
-            <Icon name="lucide:tags" class="w-4 h-4 text-[var(--accent-green)]" />
+            <Icon name="lucide:tags" class="w-4 h-4 text-(--accent-green)" />
           </div>
-          <div class="text-2xl sm:text-3xl font-bold font-mono text-[var(--text-primary)]">
+          <div class="text-2xl sm:text-3xl font-bold font-mono text-(--text-primary)">
             {tagsCount}
           </div>
-          <div class="text-[11px] font-mono text-[var(--text-muted)]">
-            {tagsCount === 1 ? '1 indexed topic' : `${tagsCount} indexed topics`}
-          </div>
         </div>
-
-        <!-- Stat 3: Latest Post -->
-        <div class="border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] p-5 space-y-2 hover:border-[var(--border-highlight)] transition-colors">
-          <div class="flex items-center justify-between text-[var(--text-secondary)]">
+        <div class="border border-(--border-subtle) bg-(--bg-surface-elevated) p-5 space-y-2 hover:border-(--border-highlight) transition-colors">
+          <div class="flex items-center justify-between text-(--text-secondary)">
             <span class="text-[11px] uppercase tracking-wider font-mono">
-              Latest Release
+              Latest Post
             </span>
-            <Icon name="lucide:calendar" class="w-4 h-4 text-[var(--accent-green)]" />
+            <Icon name="lucide:calendar" class="w-4 h-4 text-(--accent-green)" />
           </div>
-          <div class="text-lg sm:text-xl font-bold font-mono text-[var(--text-primary)] truncate" title={latestPostDate}>
+          <div class="text-lg sm:text-xl font-bold font-mono text-(--text-primary) truncate" title={latestPostDate}>
             {latestPostDate}
           </div>
-          <div class="text-[11px] font-mono text-[var(--text-muted)] truncate" title={latestPostTitle || 'No published posts'}>
+          <div class="text-[11px] font-mono text-(--text-muted) truncate" title={latestPostTitle || 'No published posts'}>
             {latestPostSlug ? (
-              <a href={`/posts/${latestPostSlug}`} class="hover:text-[var(--accent-green)] transition-colors">
+              <a href={`/posts/${latestPostSlug}`} class="hover:text-(--accent-green) transition-colors">
                 {latestPostTitle}
               </a>
             ) : (
@@ -196,19 +176,17 @@ function formatDate(timestamp: number | Date | null | undefined) {
         </div>
       </div>
     </section>
-
-    <!-- Latest 5 Posts Section -->
     <section class="space-y-4">
-      <div class="flex items-center justify-between border-b border-[var(--border-main)] pb-3">
+      <div class="flex items-center justify-between border-b border-(--border-main) pb-3">
         <div class="flex items-center gap-2">
-          <Icon name="lucide:newspaper" class="w-4 h-4 text-[var(--accent-green)]" />
-          <span class="text-xs uppercase tracking-widest text-[var(--accent-green)] font-mono font-bold">
-            // RECENT_PUBLICATIONS // LATEST_5
+          <Icon name="lucide:newspaper" class="w-4 h-4 text-(--accent-green)" />
+          <span class="text-xs uppercase tracking-widest text-(--accent-green) font-mono font-bold">
+            // LATEST_POSTS
           </span>
         </div>
         <a
           href="/posts"
-          class="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent-green-bright)] inline-flex items-center gap-1 transition-colors"
+          class="text-xs font-mono text-(--text-secondary) hover:text-(--accent-green-bright) inline-flex items-center gap-1 transition-colors"
         >
           <span>View all posts</span>
           <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
@@ -216,19 +194,19 @@ function formatDate(timestamp: number | Date | null | undefined) {
       </div>
 
       {recentPosts.length === 0 ? (
-        <div class="border border-[var(--border-main)] bg-[var(--bg-surface)] p-8 text-center space-y-2">
-          <div class="text-[var(--accent-green)] text-sm font-mono font-bold">
-            > NO_PUBLICATIONS_YET
+        <div class="border border-(--border-main) bg-(--bg-surface) p-8 text-center space-y-2">
+          <div class="text-(--accent-green) text-sm font-mono font-bold">
+            > NO_POSTS_YET
           </div>
-          <p class="text-xs text-[var(--text-secondary)]">
-            Articles and research notes will appear here once published.
+          <p class="text-xs text-(--text-secondary)">
+            Posts will appear here once published.
           </p>
         </div>
       ) : (
-        <div class="divide-y divide-[var(--border-main)] border border-[var(--border-main)] bg-[var(--bg-surface)]">
+        <div class="divide-y divide-(--border-main) border border-(--border-main) bg-(--bg-surface)">
           {recentPosts.map((post) => (
-            <article class="p-6 hover:bg-[var(--bg-surface-hover)] transition-colors group">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--text-muted)] mb-2 font-mono">
+            <article class="p-6 hover:bg-(--bg-surface-hover) transition-colors group">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-(--text-muted) mb-2 font-mono">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex items-center gap-1">
                     <Icon name="lucide:calendar" class="w-3.5 h-3.5" />
@@ -245,7 +223,7 @@ function formatDate(timestamp: number | Date | null | undefined) {
                     {post.tags.map((tag: any) => (
                       <a
                         href={`/posts?tag=${tag.slug}`}
-                        class="px-1.5 py-0.5 text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-green-bright)] hover:border-[var(--accent-green)] transition-colors inline-flex items-center gap-1"
+                        class="px-1.5 py-0.5 text-[11px] bg-(--bg-surface-elevated) border border-(--border-subtle) text-(--text-secondary) hover:text-(--accent-green-bright) hover:border-(--accent-green) transition-colors inline-flex items-center gap-1"
                       >
                         #{tag.name}
                       </a>
@@ -253,23 +231,20 @@ function formatDate(timestamp: number | Date | null | undefined) {
                   </div>
                 )}
               </div>
-
-              <h2 class="text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-green-bright)] transition-colors mb-2">
+              <h2 class="text-lg font-bold text-(--text-primary) group-hover:text-(--accent-green-bright) transition-colors mb-2">
                 <a href={`/posts/${post.slug}`} class="block">
                   {post.title}
                 </a>
               </h2>
-
               {post.description && (
-                <p class="text-xs text-[var(--text-secondary)] leading-relaxed mb-4 line-clamp-2">
+                <p class="text-xs text-(--text-secondary) leading-relaxed mb-4 line-clamp-2">
                   {post.description}
                 </p>
               )}
-
               <div>
                 <a
                   href={`/posts/${post.slug}`}
-                  class="text-xs font-mono text-[var(--accent-green)] hover:text-[var(--accent-green-bright)] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform"
+                  class="text-xs font-mono text-(--accent-green) hover:text-(--accent-green-bright) inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform"
                 >
                   <span>Read Article</span>
                   <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
@@ -279,31 +254,13 @@ function formatDate(timestamp: number | Date | null | undefined) {
           ))}
         </div>
       )}
-
-      <!-- Quick Action Navigation Bar -->
       <div class="pt-2 flex flex-wrap items-center gap-3">
         <a
           href="/posts"
-          class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-[var(--accent-green)] text-[var(--text-inverse)] hover:bg-[var(--accent-green-bright)] transition-colors inline-flex items-center gap-1.5 font-mono"
+          class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5 font-mono"
         >
           <span>Browse All Posts</span>
           <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
-        </a>
-
-        <a
-          href="/security"
-          class="px-4 py-2 text-xs uppercase tracking-wider font-mono border border-[var(--border-main)] text-[var(--text-primary)] hover:border-[var(--border-highlight)] hover:bg-[var(--accent-green-glow)] transition-colors inline-flex items-center gap-1.5"
-        >
-          <Icon name="lucide:shield" class="w-3.5 h-3.5" />
-          <span>Security</span>
-        </a>
-
-        <a
-          href="/admin"
-          class="px-4 py-2 text-xs uppercase tracking-wider font-mono border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-main)] transition-colors inline-flex items-center gap-1.5"
-        >
-          <Icon name="lucide:terminal" class="w-3.5 h-3.5" />
-          <span>Admin</span>
         </a>
       </div>
     </section>

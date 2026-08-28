@@ -2,13 +2,15 @@
 import Layout from '../../layouts/Layout.astro';
 import AsciiTitle from '../../components/AsciiTitle.astro';
 import { Icon } from 'astro-icon/components';
-import { desc, asc, eq, inArray } from 'drizzle-orm';
+import { desc, asc, eq } from 'drizzle-orm';
 import { getDb, posts, tags, post_tags } from '../../db';
 import { calculateReadingTime } from '../../lib/markdown';
+import { formatDate } from '../../lib/utils';
+import { POSTS_PAGE_SIZE } from '../../lib/info';
 
 export const prerender = false;
 
-// Edge Cache Control for Public Blog List
+// Edge Cache Control for Public Blog Index
 Astro.response.headers.set(
   'Cache-Control',
   'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400'
@@ -19,7 +21,6 @@ const tagParam = Astro.url.searchParams.get('tag')?.trim() || '';
 const sortParam = Astro.url.searchParams.get('sort') === 'oldest' ? 'oldest' : 'latest';
 const rawPage = parseInt(Astro.url.searchParams.get('page') || '1', 10);
 const currentPage = isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
-const PAGE_SIZE = 10;
 
 let allTags: { id: string; name: string; slug: string; count: number }[] = [];
 let filteredPosts: any[] = [];
@@ -57,6 +58,8 @@ try {
     })
     .from(post_tags)
     .innerJoin(tags, eq(post_tags.tag_id, tags.id))
+    .innerJoin(posts, eq(post_tags.post_id, posts.id))
+    .where(eq(posts.status, 'published'))
     .all();
 
   // Group tags by post_id
@@ -115,23 +118,13 @@ try {
   }
 
   totalFilteredCount = matched.length;
-  totalPages = Math.max(1, Math.ceil(totalFilteredCount / PAGE_SIZE));
+  totalPages = Math.max(1, Math.ceil(totalFilteredCount / POSTS_PAGE_SIZE));
 
-  // 5. Paginate items (10 posts per page)
-  const offset = (currentPage - 1) * PAGE_SIZE;
-  filteredPosts = matched.slice(offset, offset + PAGE_SIZE);
+  // 5. Paginate items
+  const offset = (currentPage - 1) * POSTS_PAGE_SIZE;
+  filteredPosts = matched.slice(offset, offset + POSTS_PAGE_SIZE);
 } catch (error) {
   console.error('Error loading posts list:', error);
-}
-
-function formatDate(timestamp: number | Date | null | undefined) {
-  if (!timestamp) return '';
-  const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function getPageUrl(targetPage: number) {
@@ -147,60 +140,54 @@ function getPageUrl(targetPage: number) {
 
 <Layout
   title="Posts | CFN"
-  description="Technical articles, security research, and systems engineering."
+  description="Blog Posts"
 >
   <div class="content space-y-8">
     <AsciiTitle />
 
-    <!-- Filter & Search Toolbar -->
-    <div class="border border-[var(--border-main)] bg-[var(--bg-surface)] p-4 space-y-4">
+    <div class="border border-(--border-main) bg-(--bg-surface) p-4 space-y-4">
       <form method="GET" action="/posts" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div class="flex-1 relative">
-          <Icon name="lucide:search" class="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
+          <Icon name="lucide:search" class="w-4 h-4 text-(--text-muted) absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             name="search"
             value={searchParam}
             placeholder="Search articles by title or keyword..."
-            class="w-full pl-9 pr-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-main)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-highlight)] font-mono"
+            class="w-full pl-9 pr-3 py-2 text-sm bg-(--bg-primary) border border-(--border-main) text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:border-(--border-highlight) font-mono"
           />
         </div>
-
         {tagParam && <input type="hidden" name="tag" value={tagParam} />}
-
         <div class="flex items-center gap-2">
+          <!-- TODO: stylize dropdown -->
           <select
             name="sort"
             onchange="this.form.submit()"
-            class="px-3 py-2 text-xs uppercase tracking-wider bg-[var(--bg-primary)] border border-[var(--border-main)] text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-highlight)] font-mono cursor-pointer"
+            class="px-3 py-2 text-xs uppercase tracking-wider bg-(--bg-primary) border border-(--border-main) text-(--text-secondary) focus:outline-none focus:border-(--border-highlight) font-mono cursor-pointer"
           >
             <option value="latest" selected={sortParam === 'latest'}>Sort: Latest</option>
             <option value="oldest" selected={sortParam === 'oldest'}>Sort: Oldest</option>
           </select>
-
           <button
             type="submit"
-            class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-[var(--accent-green)] text-[var(--text-inverse)] hover:bg-[var(--accent-green-bright)] transition-colors inline-flex items-center gap-1.5"
+            class="px-4 py-2 text-xs uppercase tracking-wider font-bold bg-(--accent-green) text-(--text-inverse) hover:bg-(--accent-green-bright) transition-colors inline-flex items-center gap-1.5"
           >
             <Icon name="lucide:search" class="w-3.5 h-3.5" />
             <span>Search</span>
           </button>
-
           {(searchParam || tagParam || sortParam !== 'latest') && (
             <a
               href="/posts"
-              class="px-3 py-2 text-xs uppercase tracking-wider border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-main)]"
+              class="px-3 py-2 text-xs uppercase tracking-wider border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main)"
             >
               Reset
             </a>
           )}
         </div>
       </form>
-
-      <!-- Tag Filters -->
       {allTags.length > 0 && (
-        <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[var(--border-subtle)]">
-          <span class="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-2 inline-flex items-center gap-1">
+        <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-(--border-subtle)">
+          <span class="text-xs text-(--text-muted) uppercase tracking-wider mr-2 inline-flex items-center gap-1">
             <Icon name="lucide:tag" class="w-3.5 h-3.5" />
             <span>Tags:</span>
           </span>
@@ -209,8 +196,8 @@ function getPageUrl(targetPage: number) {
             class:list={[
               'px-2 py-0.5 text-xs font-mono transition-colors border',
               !tagParam
-                ? 'border-[var(--accent-green)] bg-[var(--accent-green-glow)] text-[var(--accent-green-bright)] font-bold'
-                : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-main)]',
+                ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                : 'border-(--border-subtle) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-main)',
             ]}
           >
             All
@@ -221,25 +208,23 @@ function getPageUrl(targetPage: number) {
               class:list={[
                 'px-2 py-0.5 text-xs font-mono transition-colors border inline-flex items-center gap-1',
                 tagParam === tag.slug
-                  ? 'border-[var(--accent-green)] bg-[var(--accent-green-glow)] text-[var(--accent-green-bright)] font-bold'
-                  : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-main)]',
+                  ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                  : 'border-(--border-subtle) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--border-main)',
               ]}
             >
-              #{tag.name} <span class="text-[var(--text-muted)] text-[10px]">({tag.count})</span>
+              #{tag.name} <span class="text-(--text-muted) text-[10px]">({tag.count})</span>
             </a>
           ))}
         </div>
       )}
     </div>
-
-    <!-- Blog Posts List -->
     <div class="space-y-4">
       {filteredPosts.length === 0 ? (
-        <div class="border border-[var(--border-main)] bg-[var(--bg-surface)] p-12 text-center space-y-2">
-          <div class="text-[var(--accent-green)] text-sm font-mono font-bold">
+        <div class="border border-(--border-main) bg-(--bg-surface) p-12 text-center space-y-2">
+          <div class="text-(--accent-green) text-sm font-mono font-bold">
             > NO_POSTS_FOUND
           </div>
-          <p class="text-xs text-[var(--text-secondary)]">
+          <p class="text-xs text-(--text-secondary)">
             {searchParam || tagParam
               ? 'No articles match the selected search or tag filter.'
               : 'No articles have been published yet. Check back soon!'}
@@ -248,7 +233,7 @@ function getPageUrl(targetPage: number) {
             <div class="pt-4">
               <a
                 href="/posts"
-                class="px-4 py-1.5 text-xs uppercase tracking-wider font-bold border border-[var(--border-main)] text-[var(--text-primary)] hover:border-[var(--border-highlight)] inline-flex items-center gap-1.5"
+                class="px-4 py-1.5 text-xs uppercase tracking-wider font-bold border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) inline-flex items-center gap-1.5"
               >
                 <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
                 <span>View All Posts</span>
@@ -257,10 +242,10 @@ function getPageUrl(targetPage: number) {
           )}
         </div>
       ) : (
-        <div class="divide-y divide-[var(--border-main)] border border-[var(--border-main)] bg-[var(--bg-surface)]">
+        <div class="divide-y divide-(--border-main) border border-(--border-main) bg-(--bg-surface)">
           {filteredPosts.map((post) => (
-            <article class="p-6 hover:bg-[var(--bg-surface-hover)] transition-colors group">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--text-muted)] mb-2 font-mono">
+            <article class="p-6 hover:bg-(--bg-surface-hover) transition-colors group">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-(--text-muted) mb-2 font-mono">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex items-center gap-1">
                     <Icon name="lucide:calendar" class="w-3.5 h-3.5" />
@@ -277,7 +262,7 @@ function getPageUrl(targetPage: number) {
                     {post.tags.map((tag: any) => (
                       <a
                         href={`/posts?tag=${tag.slug}`}
-                        class="px-1.5 py-0.5 text-[11px] bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-green-bright)] hover:border-[var(--accent-green)] transition-colors inline-flex items-center gap-1"
+                        class="px-1.5 py-0.5 text-[11px] bg-(--bg-surface-elevated) border border-(--border-subtle) text-(--text-secondary) hover:text-(--accent-green-bright) hover:border-(--accent-green) transition-colors inline-flex items-center gap-1"
                       >
                         #{tag.name}
                       </a>
@@ -285,23 +270,20 @@ function getPageUrl(targetPage: number) {
                   </div>
                 )}
               </div>
-
-              <h2 class="text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-green-bright)] transition-colors mb-2">
+              <h2 class="text-lg font-bold text-(--text-primary) group-hover:text-(--accent-green-bright) transition-colors mb-2">
                 <a href={`/posts/${post.slug}`} class="block">
                   {post.title}
                 </a>
               </h2>
-
               {post.description && (
-                <p class="text-xs text-[var(--text-secondary)] leading-relaxed mb-4 line-clamp-2">
+                <p class="text-xs text-(--text-secondary) leading-relaxed mb-4 line-clamp-2">
                   {post.description}
                 </p>
               )}
-
               <div>
                 <a
                   href={`/posts/${post.slug}`}
-                  class="text-xs font-mono text-[var(--accent-green)] hover:text-[var(--accent-green-bright)] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform"
+                  class="text-xs font-mono text-(--accent-green) hover:text-(--accent-green-bright) inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform"
                 >
                   <span>Read Article</span>
                   <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
@@ -311,32 +293,27 @@ function getPageUrl(targetPage: number) {
           ))}
         </div>
       )}
-
-      <!-- Pagination Bar -->
       {totalPages > 1 && (
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border border-[var(--border-main)] bg-[var(--bg-surface)] p-4 font-mono text-xs">
-          <div class="text-[var(--text-muted)]">
-            Showing <strong class="text-[var(--text-primary)]">{filteredPosts.length}</strong> of{' '}
-            <strong class="text-[var(--text-primary)]">{totalFilteredCount}</strong> posts (Page {currentPage} of {totalPages})
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border border-(--border-main) bg-(--bg-surface) p-4 font-mono text-xs">
+          <div class="text-(--text-muted)">
+            Showing <strong class="text-(--text-primary)">{filteredPosts.length}</strong> of{' '}
+            <strong class="text-(--text-primary)">{totalFilteredCount}</strong> posts (Page {currentPage} of {totalPages})
           </div>
-
           <div class="flex items-center gap-2">
             {currentPage > 1 ? (
               <a
                 href={getPageUrl(currentPage - 1)}
-                class="px-3 py-1.5 border border-[var(--border-main)] text-[var(--text-primary)] hover:border-[var(--border-highlight)] hover:bg-[var(--accent-green-glow)] transition-colors inline-flex items-center gap-1"
+                class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1"
               >
                 <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
                 <span>Prev</span>
               </a>
             ) : (
-              <span class="px-3 py-1.5 border border-[var(--border-subtle)] text-[var(--text-muted)] opacity-50 cursor-not-allowed inline-flex items-center gap-1">
+              <span class="px-3 py-1.5 border border-(--border-subtle) text-(--text-muted) opacity-50 cursor-not-allowed inline-flex items-center gap-1">
                 <Icon name="lucide:arrow-left" class="w-3.5 h-3.5" />
                 <span>Prev</span>
               </span>
             )}
-
-            <!-- Page Number Indicator -->
             <div class="flex items-center gap-1">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <a
@@ -344,25 +321,24 @@ function getPageUrl(targetPage: number) {
                   class:list={[
                     'w-8 h-8 flex items-center justify-center text-xs border transition-colors',
                     p === currentPage
-                      ? 'border-[var(--accent-green)] bg-[var(--accent-green-glow)] text-[var(--accent-green-bright)] font-bold'
-                      : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-main)] hover:text-[var(--text-primary)]',
+                      ? 'border-(--accent-green) bg-(--accent-green-glow) text-(--accent-green-bright) font-bold'
+                      : 'border-(--border-subtle) text-(--text-secondary) hover:border-(--border-main) hover:text-(--text-primary)',
                   ]}
                 >
                   {p}
                 </a>
               ))}
             </div>
-
             {currentPage < totalPages ? (
               <a
                 href={getPageUrl(currentPage + 1)}
-                class="px-3 py-1.5 border border-[var(--border-main)] text-[var(--text-primary)] hover:border-[var(--border-highlight)] hover:bg-[var(--accent-green-glow)] transition-colors inline-flex items-center gap-1"
+                class="px-3 py-1.5 border border-(--border-main) text-(--text-primary) hover:border-(--border-highlight) hover:bg-(--accent-green-glow) transition-colors inline-flex items-center gap-1"
               >
                 <span>Next</span>
                 <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
               </a>
             ) : (
-              <span class="px-3 py-1.5 border border-[var(--border-subtle)] text-[var(--text-muted)] opacity-50 cursor-not-allowed inline-flex items-center gap-1">
+              <span class="px-3 py-1.5 border border-(--border-subtle) text-(--text-muted) opacity-50 cursor-not-allowed inline-flex items-center gap-1">
                 <span>Next</span>
                 <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
               </span>

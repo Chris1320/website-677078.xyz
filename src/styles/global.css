@@ -8,7 +8,7 @@
   margin-bottom: 2.5rem;
 }
 
-/* Obsidian & Markdown Rendering Styles */
+/* Markdown Rendering Styles */
 .markdown-body {
   font-family: var(--font-mono);
   color: var(--text-primary);
@@ -130,7 +130,7 @@
 
 .markdown-body mark,
 .markdown-body .obsidian-highlight {
-  background: rgba(100, 200, 165, 0.25);
+  background: var(--accent-green-glow);
   color: var(--accent-green-bright);
   padding: 0.1rem 0.35rem;
 }
@@ -161,7 +161,7 @@
 .markdown-body .obsidian-video {
   width: 100%;
   max-height: 520px;
-  background: #000;
+  background: var(--bg-primary);
 }
 
 .markdown-body .obsidian-wikilink {
@@ -331,7 +331,7 @@
 .markdown-body .code-block-wrapper {
   margin: 1.5rem 0;
   border: 1px solid var(--border-main);
-  background: #0d1410 !important;
+  background: var(--bg-surface-elevated) !important;
   overflow-x: auto;
 }
 
