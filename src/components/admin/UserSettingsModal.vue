@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { Icon } from "@iconify/vue";
+import QRCode from "qrcode";
 
 const props = defineProps<{
   show: boolean;
@@ -27,6 +28,7 @@ const confirmPassword = ref("");
 const isSettingUpTotp = ref(false);
 const totpSecret = ref("");
 const totpOtpauthUrl = ref("");
+const totpQrSvg = ref("");
 const totpVerificationCode = ref("");
 const totpDisablePassword = ref("");
 const totpDisableCode = ref("");
@@ -56,6 +58,7 @@ watch(
       confirmPassword.value = "";
       totpDisablePassword.value = "";
       totpDisableCode.value = "";
+      totpQrSvg.value = "";
       isSettingUpTotp.value = false;
       fetchUserProfile();
     }
@@ -125,6 +128,18 @@ async function startTotpSetup() {
 
     totpSecret.value = data.secret || "";
     totpOtpauthUrl.value = data.otpauthUrl || "";
+    if (data.otpauthUrl) {
+      totpQrSvg.value = await QRCode.toString(data.otpauthUrl, {
+        type: "svg",
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+    } else {
+      totpQrSvg.value = "";
+    }
     isSettingUpTotp.value = true;
   } catch (err: any) {
     errorMessage.value = err?.message || "Error setting up TOTP";
@@ -425,18 +440,32 @@ async function handleDisableTotp() {
             </div>
           </div>
           <div v-else-if="isSettingUpTotp" class="space-y-4">
-            <div class="space-y-2">
+            <div class="space-y-3">
               <p class="font-bold text-(--accent-green)">
-                Step 1: Add to Authenticator
+                Step 1: Scan QR Code or Enter Secret
               </p>
               <p class="text-[11px] text-(--text-secondary)">
-                Add this secret key into your authenticator app (Google
-                Authenticator, Bitwarden, 1Password, Aegis, etc.):
+                Scan this QR code with your authenticator app (Google
+                Authenticator, Aegis, Bitwarden, 1Password, etc.):
               </p>
               <div
-                class="p-2.5 bg-(--bg-primary) border border-(--border-main) text-(--accent-green-bright) font-mono tracking-widest text-center select-all"
+                v-if="totpQrSvg"
+                class="flex justify-center p-3 bg-white border border-(--border-main) rounded max-w-xs mx-auto"
               >
-                {{ totpSecret }}
+                <div
+                  class="w-44 h-44 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+                  v-html="totpQrSvg"
+                ></div>
+              </div>
+              <div class="space-y-1">
+                <p class="text-[11px] text-(--text-muted)">
+                  Can't scan? Enter this secret key manually:
+                </p>
+                <div
+                  class="p-2.5 bg-(--bg-primary) border border-(--border-main) text-(--accent-green-bright) font-mono tracking-widest text-center select-all text-xs"
+                >
+                  {{ totpSecret }}
+                </div>
               </div>
             </div>
             <div class="space-y-2 pt-2 border-t border-(--border-subtle)">
