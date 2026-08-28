@@ -39,6 +39,8 @@ describe("Markdown Engine", () => {
     expect(html).toContain('data-callout="warning"');
     expect(html).toContain("Production Alert");
     expect(html).toContain("Do not execute raw SQL");
+    expect(html).toContain('class="lucide-callout-icon"');
+    expect(html).toContain("<svg");
   });
 
   it("highlights code blocks with Shiki", async () => {

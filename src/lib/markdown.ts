@@ -27,6 +27,8 @@ import rust from "shiki/langs/rust.mjs";
 import yaml from "shiki/langs/yaml.mjs";
 import vue from "shiki/langs/vue.mjs";
 import astro from "shiki/langs/astro.mjs";
+import { getIconData, iconToSVG } from "@iconify/utils";
+import lucideIcons from "@iconify-json/lucide/icons.json";
 import type { Root as MdastRoot, BlockContent, Blockquote } from "mdast";
 import { slugify } from "./utils";
 import type { Root as HastRoot, Element as HastElement } from "hast";
@@ -333,42 +335,54 @@ function remarkObsidianCallouts() {
   };
 }
 
+const CALLOUT_LUCIDE_MAP: Record<string, string> = {
+  note: "info",
+  seealso: "info",
+  info: "info",
+  todo: "check-square",
+  tip: "flame",
+  hint: "flame",
+  important: "flame",
+  danger: "zap",
+  error: "zap",
+  warning: "triangle-alert",
+  caution: "triangle-alert",
+  attention: "triangle-alert",
+  failure: "circle-x",
+  fail: "circle-x",
+  missing: "circle-x",
+  question: "circle-help",
+  help: "circle-help",
+  faq: "circle-help",
+  success: "circle-check",
+  check: "circle-check",
+  done: "circle-check",
+  abstract: "clipboard-list",
+  summary: "clipboard-list",
+  tldr: "clipboard-list",
+  bug: "bug",
+  example: "flask-conical",
+  quote: "quote",
+  cite: "quote",
+};
+
 function getCalloutIcon(type: string): string {
-  // TODO: use <Icon /> for callouts
-  switch (type) {
-    case "warning":
-    case "caution":
-    case "attention":
-      return "⚠️";
-    case "tip":
-    case "hint":
-    case "important":
-      return "💡";
-    case "danger":
-    case "error":
-      return "⛔";
-    case "question":
-    case "help":
-    case "faq":
-      return "❓";
-    case "success":
-    case "check":
-    case "done":
-      return "✓";
-    case "abstract":
-    case "summary":
-    case "tldr":
-      return "📋";
-    case "bug":
-      return "🪲";
-    case "example":
-      return "🔍";
-    case "quote":
-    case "cite":
-      return "💬";
-    default:
-      return "ℹ️";
+  const iconName = CALLOUT_LUCIDE_MAP[type] || "info";
+  const iconData = getIconData(lucideIcons as any, iconName);
+  if (!iconData) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-callout-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
   }
+
+  const renderData = iconToSVG(iconData, {
+    width: "16",
+    height: "16",
+  });
+
+  const attributes = Object.entries(renderData.attributes)
+    .map(([key, val]) => `${key}="${val}"`)
+    .join(" ");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="lucide-callout-icon" ${attributes}>${renderData.body}</svg>`;
 }
 
 /**

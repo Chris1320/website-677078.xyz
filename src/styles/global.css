@@ -322,6 +322,20 @@
   color: var(--accent-green-bright);
 }
 
+.markdown-body .callout-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+
+.markdown-body .callout-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .markdown-body .callout-fold-indicator {
   margin-left: auto;
   font-size: 0.85em;
