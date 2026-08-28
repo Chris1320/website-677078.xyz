@@ -34,10 +34,7 @@ export const DELETE: APIRoute = async (context) => {
       });
     }
 
-    // Delete from R2 storage
     await bucket.delete(asset.filename);
-
-    // Delete record from D1
     await db.delete(media).where(eq(media.id, asset.id));
 
     return new Response(

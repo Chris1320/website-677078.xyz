@@ -1,34 +1,10 @@
 import type { APIRoute } from "astro";
 import { eq } from "drizzle-orm";
 import { getDb, getMediaBucket, media } from "../../../db";
+import { MAX_MEDIA_FILE_SIZE } from "../../../lib/info";
+import { sanitizeFilename, computeSha256 } from "../../../lib/media";
 
 export const prerender = false;
-
-function sanitizeFilename(originalName: string): string {
-  const lastDotIndex = originalName.lastIndexOf(".");
-  const name =
-    lastDotIndex !== -1 ? originalName.slice(0, lastDotIndex) : originalName;
-  const ext =
-    lastDotIndex !== -1
-      ? originalName.slice(lastDotIndex + 1).toLowerCase()
-      : "";
-
-  const cleanName =
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "file";
-
-  return ext ? `${cleanName}.${ext}` : cleanName;
-}
-
-export async function computeSha256(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export const POST: APIRoute = async (context) => {
   try {
@@ -46,13 +22,57 @@ export const POST: APIRoute = async (context) => {
       });
     }
 
+    if (file.size > MAX_MEDIA_FILE_SIZE) {
+      return new Response(
+        JSON.stringify({
+          error: `File size exceeds limit of ${MAX_MEDIA_FILE_SIZE / 1024 / 1024}MB`,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const originalName = file.name;
+    const ext = originalName.split(".").pop()?.toLowerCase() || "";
+
+    // NOTE: I disabled extension and MIMETYPE validation because I am the only
+    // one (admin) uploading files and I want to be able to upload any filetype.
+    // TODO: Making this a setting is a good idea. Though I'm lazy today.
+    //
+    // if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
+    //   return new Response(
+    //     JSON.stringify({
+    //       error: `Disallowed file type (.${ext || "unknown"}). Allowed types: images, videos, audio, and PDF documents.`,
+    //     }),
+    //     {
+    //       status: 400,
+    //       headers: { "Content-Type": "application/json" },
+    //     },
+    //   );
+    // }
+
+    const contentType = file.type || "application/octet-stream";
+
+    // if (
+    //   contentType !== "application/octet-stream" &&
+    //   !ALLOWED_MIME_TYPES.has(contentType)
+    // ) {
+    //   return new Response(
+    //     JSON.stringify({
+    //       error: `Invalid MIME type (${contentType}).`,
+    //     }),
+    //     {
+    //       status: 400,
+    //       headers: { "Content-Type": "application/json" },
+    //     },
+    //   );
+    // }
+
     const arrayBuffer = await file.arrayBuffer();
     const hashHex = await computeSha256(arrayBuffer);
-    const contentType = file.type || "application/octet-stream";
-    const originalName = file.name;
-    const ext = originalName.split(".").pop()?.toLowerCase() || "bin";
 
-    // 1. Check for duplicate media via SHA-256 content hash
     const existingByHash = await db
       .select()
       .from(media)
@@ -81,7 +101,6 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    // 2. Generate unique filename for new asset
     let filename = "";
     if (preserveName) {
       const sanitized = sanitizeFilename(originalName);
@@ -104,14 +123,12 @@ export const POST: APIRoute = async (context) => {
       filename = `${crypto.randomUUID()}.${ext}`;
     }
 
-    // 3. Write binary to R2
     await bucket.put(filename, arrayBuffer, {
       httpMetadata: {
         contentType,
       },
     });
 
-    // 4. Record asset in D1 with content hash
     const mediaId = crypto.randomUUID();
     const now = new Date();
 

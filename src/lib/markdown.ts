@@ -10,7 +10,8 @@ import rehypeStringify from "rehype-stringify";
 import { visit } from "unist-util-visit";
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-import vitesseDark from "shiki/themes/vitesse-dark.mjs";
+import catppuccinMocha from "shiki/themes/catppuccin-mocha.mjs";
+import catppuccinLatte from "shiki/themes/catppuccin-latte.mjs";
 import js from "shiki/langs/javascript.mjs";
 import ts from "shiki/langs/typescript.mjs";
 import html from "shiki/langs/html.mjs";
@@ -27,6 +28,7 @@ import yaml from "shiki/langs/yaml.mjs";
 import vue from "shiki/langs/vue.mjs";
 import astro from "shiki/langs/astro.mjs";
 import type { Root as MdastRoot, BlockContent, Blockquote } from "mdast";
+import { slugify } from "./utils";
 import type { Root as HastRoot, Element as HastElement } from "hast";
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
@@ -34,7 +36,7 @@ let highlighterPromise: Promise<HighlighterCore> | null = null;
 async function getHighlighterInstance() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighterCore({
-      themes: [vitesseDark],
+      themes: [catppuccinMocha, catppuccinLatte],
       langs: [
         js,
         ts,
@@ -75,16 +77,6 @@ const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "m4a", "flac", "aac"]);
 function getExtension(filename: string): string {
   const parts = filename.split(".");
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
-}
-
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-");
 }
 
 function parseWikilink(rawTarget: string, rawLabel?: string) {
@@ -143,7 +135,7 @@ function parseEmbedParameters(targetWithPipe: string, labelParam?: string) {
 }
 
 /**
- * Remark plugin to parse Obsidian comments (%%...%%), highlights (==...==), wikilinks [[slug]], and embeds ![[filename.ext]]
+ * Remark plugin to parse Obsidian-flavored comments (%%...%%), highlights (==...==), wikilinks [[slug]], and embeds ![[filename.ext]]
  */
 function remarkObsidianLinks() {
   return (tree: MdastRoot) => {
@@ -230,7 +222,7 @@ function remarkObsidianLinks() {
             } else {
               newChildren.push({
                 type: "html",
-                value: `<a href="/media/${filename}" download class="obsidian-attachment-link inline-flex items-center gap-1.5 px-2.5 py-1 text-xs border border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] text-[var(--accent-green-bright)] hover:border-[var(--accent-green)]">📎 ${alt}</a>`,
+                value: `<a href="/media/${filename}" download class="obsidian-attachment-link inline-flex items-center gap-1.5 px-2.5 py-1 text-xs border border-(--border-subtle) bg-(--bg-surface-elevated) text-(--accent-green-bright) hover:border-(--accent-green)">📎 ${alt}</a>`,
               });
             }
           } else {
@@ -310,7 +302,7 @@ function remarkObsidianCallouts() {
           hName: "details",
           hProperties: {
             class: `obsidian-callout callout-${type} callout-foldable border border-[var(--border-main)]`,
-            open: fold === "+" ? "" : undefined,
+            open: fold === "+" ? true : undefined,
             "data-callout": type,
           },
         };
@@ -342,6 +334,7 @@ function remarkObsidianCallouts() {
 }
 
 function getCalloutIcon(type: string): string {
+  // TODO: use <Icon /> for callouts
   switch (type) {
     case "warning":
     case "caution":
@@ -410,7 +403,7 @@ function rehypeShikiHighlight(highlighter: HighlighterCore) {
       try {
         const highlightedHtml = highlighter.codeToHtml(codeText.trimEnd(), {
           lang: resolvedLang,
-          theme: "vitesse-dark",
+          theme: "catppuccin-mocha",
         });
 
         const rawNode = {
@@ -463,7 +456,7 @@ export function extractMediaReferences(markdown: string): string[] {
   const references = new Set<string>();
   if (!markdown) return [];
 
-  // Obsidian embed syntax: ![[filename.ext]] or ![[filename.ext|Alt text]] or ![[filename.ext|300]]
+  // Obsidian embed syntax (`![[filename.ext]]` or `![[filename.ext|Alt text]]` or `![[filename.ext|300]]` )
   const obsidianEmbedRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
   let match: RegExpExecArray | null;
   while ((match = obsidianEmbedRegex.exec(markdown)) !== null) {
@@ -472,7 +465,7 @@ export function extractMediaReferences(markdown: string): string[] {
     if (filename) references.add(filename);
   }
 
-  // Standard markdown image syntax: ![alt](/media/filename.ext) or ![alt](filename.ext)
+  // Standard markdown image syntax (`![alt](/media/filename.ext)` or `![alt](filename.ext)`)
   const markdownImgRegex =
     /!\[.*?\]\((?:(?:\/media\/)|(?:media\/))?([^\s\)]+)\)/g;
   while ((match = markdownImgRegex.exec(markdown)) !== null) {

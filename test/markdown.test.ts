@@ -5,15 +5,14 @@ import {
   calculateReadingTime,
 } from "../src/lib/markdown";
 
-describe("Obsidian Markdown Engine", () => {
+describe("Markdown Engine", () => {
   it("renders wikilinks correctly", async () => {
-    const md =
-      "Check out [[intro-to-workers]] and [[cloudflare-d1|Cloudflare D1 Guide]].";
+    const md = "Check out [[this]] and [[bar|that]].";
     const html = await renderMarkdown(md);
-    expect(html).toContain('href="/posts/intro-to-workers"');
-    expect(html).toContain("intro-to-workers");
-    expect(html).toContain('href="/posts/cloudflare-d1"');
-    expect(html).toContain("Cloudflare D1 Guide");
+    expect(html).toContain('href="/posts/this"');
+    expect(html).toContain("this");
+    expect(html).toContain('href="/posts/bar"');
+    expect(html).toContain("that");
   });
 
   it("renders image embeds with /media/ path", async () => {
@@ -65,7 +64,7 @@ And a standard link: [Google](https://google.com)
     ]);
   });
 
-  it("strips Obsidian comments and renders highlights", async () => {
+  it("strips comments and renders highlights", async () => {
     const md = "Visible %%Hidden comment%% text with ==important highlight==.";
     const html = await renderMarkdown(md);
     expect(html).not.toContain("Hidden comment");
@@ -110,12 +109,36 @@ And a standard link: [Google](https://google.com)
 > [!faq]- Are you sure?
 > Yes this is collapsed by default.
 
+> [!note]+ Are you really really sure?
+> Sure, why not? This is uncollapsed by default.
+
+> [!tip] Standard tip
+> This is a regular non-foldable callout.
+
 See [[another-post#Architecture|Architecture Section]] and [[#Local Heading|Local Header]].
     `;
     const html = await renderMarkdown(md);
+
     expect(html).toContain(
       '<details class="obsidian-callout callout-faq callout-foldable',
     );
+    expect(html).toMatch(/<details class="[^"]*callout-faq[^"]*"[^>]*>/);
+    expect(html).not.toMatch(
+      /<details class="[^"]*callout-faq[^"]*"[^>]*\bopen\b/,
+    );
+    expect(html).toContain("Yes this is collapsed by default.");
+
+    expect(html).toContain(
+      '<details class="obsidian-callout callout-note callout-foldable',
+    );
+    expect(html).toMatch(
+      /<details class="[^"]*callout-note[^"]*"[^>]*\bopen\b/,
+    );
+    expect(html).toContain("Sure, why not? This is uncollapsed by default.");
+
+    expect(html).toContain('<div class="obsidian-callout callout-tip');
+    expect(html).toContain("This is a regular non-foldable callout.");
+
     expect(html).toContain('<summary class="callout-header">');
     expect(html).toContain('href="/posts/another-post#architecture"');
     expect(html).toContain("Architecture Section");

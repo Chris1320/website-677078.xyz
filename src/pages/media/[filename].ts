@@ -1,13 +1,14 @@
 import type { APIRoute } from "astro";
 import { getMediaBucket } from "../../db";
+import { isSafeFilename, getMimeTypeForExtension } from "../../lib/media";
 
 export const prerender = false;
 
 export const GET: APIRoute = async (context) => {
   const { filename } = context.params;
 
-  if (!filename) {
-    return new Response("Filename parameter is required", { status: 400 });
+  if (!filename || !isSafeFilename(filename)) {
+    return new Response("Invalid filename parameter", { status: 400 });
   }
 
   try {
@@ -22,28 +23,20 @@ export const GET: APIRoute = async (context) => {
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
     headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    headers.set("X-Content-Type-Options", "nosniff");
 
     if (!headers.get("Content-Type")) {
-      const ext = filename.split(".").pop()?.toLowerCase();
-      const contentTypes: Record<string, string> = {
-        png: "image/png",
-        jpg: "image/jpeg",
-        jpeg: "image/jpeg",
-        gif: "image/gif",
-        webp: "image/webp",
-        svg: "image/svg+xml",
-        avif: "image/avif",
-        mp4: "video/mp4",
-        webm: "video/webm",
-        mp3: "audio/mpeg",
-        wav: "audio/wav",
-        pdf: "application/pdf",
-      };
-      if (ext && contentTypes[ext]) {
-        headers.set("Content-Type", contentTypes[ext]);
-      } else {
-        headers.set("Content-Type", "application/octet-stream");
-      }
+      headers.set("Content-Type", getMimeTypeForExtension(filename));
+    }
+
+    const ext = filename.split(".").pop()?.toLowerCase();
+
+    // Sandbox any directly viewed SVGs
+    if (ext === "svg" || headers.get("Content-Type") === "image/svg+xml") {
+      headers.set(
+        "Content-Security-Policy",
+        "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      );
     }
 
     return new Response(object.body, {
