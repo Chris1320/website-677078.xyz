@@ -378,6 +378,7 @@ async function confirmDeleteSingleAsset() {
     if (inspectingMedia.value?.id === assetToDelete.value.id) {
       inspectingMedia.value = null;
     }
+    emit("posts-updated");
     assetToDelete.value = null;
     await fetchMedia();
   } catch (err: any) {

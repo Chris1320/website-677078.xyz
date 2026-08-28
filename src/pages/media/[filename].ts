@@ -25,7 +25,10 @@ export const GET: APIRoute = async (context) => {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
-    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    headers.set(
+      "Cache-Control",
+      "public, max-age=86400, stale-while-revalidate=604800",
+    );
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Accept-Ranges", "bytes");
 
