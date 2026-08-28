@@ -308,7 +308,7 @@ async function handleDisableTotp() {
             <label
               class="block text-(--text-secondary) font-bold uppercase tracking-wider"
             >
-              New Password (leave blank to keep current)
+              New Password
             </label>
             <input
               v-model="newPassword"
@@ -334,7 +334,7 @@ async function handleDisableTotp() {
             <label
               class="block text-(--text-secondary) font-bold uppercase tracking-wider"
             >
-              Current Password (required to save changes)
+              Current Password
             </label>
             <input
               v-model="currentPassword"
