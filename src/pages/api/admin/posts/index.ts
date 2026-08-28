@@ -190,30 +190,33 @@ export const POST: APIRoute = async (context) => {
           .where(eq(tags.slug, tagSlug))
           .get();
         if (!existingTag) {
-          const newTagId = crypto.randomUUID();
-          await db.insert(tags).values({
-            id: newTagId,
-            name: tagName,
-            slug: tagSlug,
-            created_at: now,
-          });
-          existingTag = {
-            id: newTagId,
-            name: tagName,
-            slug: tagSlug,
-            created_at: now,
-          };
+          await db
+            .insert(tags)
+            .values({
+              id: crypto.randomUUID(),
+              name: tagName,
+              slug: tagSlug,
+              created_at: now,
+            })
+            .onConflictDoNothing();
+          existingTag = await db
+            .select()
+            .from(tags)
+            .where(eq(tags.slug, tagSlug))
+            .get();
         }
 
-        await db
-          .insert(post_tags)
-          .values({
-            post_id: postId,
-            tag_id: existingTag.id,
-          })
-          .onConflictDoNothing();
+        if (existingTag) {
+          await db
+            .insert(post_tags)
+            .values({
+              post_id: postId,
+              tag_id: existingTag.id,
+            })
+            .onConflictDoNothing();
 
-        attachedTags.push(existingTag);
+          attachedTags.push(existingTag);
+        }
       }
     }
 

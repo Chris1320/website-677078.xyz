@@ -2,7 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import AsciiTitle from '../../components/AsciiTitle.astro';
 import { Icon } from 'astro-icon/components';
-import { desc, asc, eq } from 'drizzle-orm';
+import { desc, asc, eq, and, or, like, sql, count, inArray } from 'drizzle-orm';
 import { getDb, posts, tags, post_tags } from '../../db';
 import { calculateReadingTime } from '../../lib/markdown';
 import { formatDate, getPaginationWindow } from '../../lib/utils';
@@ -30,10 +30,56 @@ let totalPages = 1;
 try {
   const db = getDb();
 
-  // 1. Fetch all published posts ordered
-  const sortOrder = sortParam === 'oldest' ? asc(posts.published_at) : desc(posts.published_at);
+  const tagRows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      slug: tags.slug,
+      count: count(),
+    })
+    .from(post_tags)
+    .innerJoin(tags, eq(post_tags.tag_id, tags.id))
+    .innerJoin(posts, eq(post_tags.post_id, posts.id))
+    .where(eq(posts.status, 'published'))
+    .groupBy(tags.id, tags.name, tags.slug)
+    .orderBy(desc(count()))
+    .all();
 
-  const allPublishedPosts = await db
+  allTags = tagRows.map((r) => ({ id: r.id, name: r.name, slug: r.slug, count: r.count }));
+  const conditions = [eq(posts.status, 'published')];
+  if (tagParam) {
+    conditions.push(
+      sql`${posts.id} IN (SELECT ${post_tags.post_id} FROM ${post_tags} INNER JOIN ${tags} ON ${post_tags.tag_id} = ${tags.id} WHERE ${tags.slug} = ${tagParam})`
+    );
+  }
+
+  if (searchParam) {
+    const pattern = `%${searchParam}%`;
+    conditions.push(
+      or(
+        like(posts.title, pattern),
+        like(posts.slug, pattern),
+        like(posts.description, pattern),
+        like(posts.content, pattern),
+        sql`${posts.id} IN (SELECT ${post_tags.post_id} FROM ${post_tags} INNER JOIN ${tags} ON ${post_tags.tag_id} = ${tags.id} WHERE ${tags.name} LIKE ${pattern})`
+      )!
+    );
+  }
+
+  const whereClause = and(...conditions);
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(posts)
+    .where(whereClause)
+    .all();
+
+  totalFilteredCount = total;
+  totalPages = Math.max(1, Math.ceil(totalFilteredCount / POSTS_PAGE_SIZE));
+
+  const sortOrder = sortParam === 'oldest' ? asc(posts.published_at) : desc(posts.published_at);
+  const pageOffset = (currentPage - 1) * POSTS_PAGE_SIZE;
+
+  const paginatedRows = await db
     .select({
       id: posts.id,
       slug: posts.slug,
@@ -44,85 +90,38 @@ try {
       created_at: posts.created_at,
     })
     .from(posts)
-    .where(eq(posts.status, 'published'))
+    .where(whereClause)
     .orderBy(sortOrder)
+    .limit(POSTS_PAGE_SIZE)
+    .offset(pageOffset)
     .all();
 
-  // 2. Fetch all tag associations for published posts
-  const allPostTags = await db
-    .select({
-      post_id: post_tags.post_id,
-      tag_id: tags.id,
-      tag_name: tags.name,
-      tag_slug: tags.slug,
-    })
-    .from(post_tags)
-    .innerJoin(tags, eq(post_tags.tag_id, tags.id))
-    .innerJoin(posts, eq(post_tags.post_id, posts.id))
-    .where(eq(posts.status, 'published'))
-    .all();
-
-  // Group tags by post_id
+  const postIds = paginatedRows.map((p) => p.id);
   const tagsByPostId: Record<string, { id: string; name: string; slug: string }[]> = {};
-  const tagCountMap: Record<string, { id: string; name: string; slug: string; count: number }> = {};
+  if (postIds.length > 0) {
+    const postTagRows = await db
+      .select({
+        post_id: post_tags.post_id,
+        tag_id: tags.id,
+        tag_name: tags.name,
+        tag_slug: tags.slug,
+      })
+      .from(post_tags)
+      .innerJoin(tags, eq(post_tags.tag_id, tags.id))
+      .where(inArray(post_tags.post_id, postIds))
+      .all();
 
-  for (const pt of allPostTags) {
-    if (!tagsByPostId[pt.post_id]) {
-      tagsByPostId[pt.post_id] = [];
+    for (const pt of postTagRows) {
+      if (!tagsByPostId[pt.post_id]) tagsByPostId[pt.post_id] = [];
+      tagsByPostId[pt.post_id].push({ id: pt.tag_id, name: pt.tag_name, slug: pt.tag_slug });
     }
-    tagsByPostId[pt.post_id].push({
-      id: pt.tag_id,
-      name: pt.tag_name,
-      slug: pt.tag_slug,
-    });
-
-    if (!tagCountMap[pt.tag_slug]) {
-      tagCountMap[pt.tag_slug] = {
-        id: pt.tag_id,
-        name: pt.tag_name,
-        slug: pt.tag_slug,
-        count: 0,
-      };
-    }
-    tagCountMap[pt.tag_slug].count += 1;
   }
 
-  allTags = Object.values(tagCountMap).sort((a, b) => b.count - a.count);
-
-  // 3. Attach tags & reading time to posts
-  const postsWithMetadata = allPublishedPosts.map((p) => ({
+  filteredPosts = paginatedRows.map((p) => ({
     ...p,
     tags: tagsByPostId[p.id] || [],
     readTime: calculateReadingTime(p.content),
   }));
-
-  // 4. In-memory filter for search and tag
-  let matched = postsWithMetadata;
-
-  if (tagParam) {
-    matched = matched.filter((p) =>
-      p.tags.some((t) => t.slug === tagParam || t.name.toLowerCase() === tagParam.toLowerCase())
-    );
-  }
-
-  if (searchParam) {
-    const q = searchParam.toLowerCase();
-    matched = matched.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.slug.toLowerCase().includes(q) ||
-        (p.description && p.description.toLowerCase().includes(q)) ||
-        p.content.toLowerCase().includes(q) ||
-        p.tags.some((t) => t.name.toLowerCase().includes(q))
-    );
-  }
-
-  totalFilteredCount = matched.length;
-  totalPages = Math.max(1, Math.ceil(totalFilteredCount / POSTS_PAGE_SIZE));
-
-  // 5. Paginate items
-  const offset = (currentPage - 1) * POSTS_PAGE_SIZE;
-  filteredPosts = matched.slice(offset, offset + POSTS_PAGE_SIZE);
 } catch (error) {
   console.error('Error loading posts list:', error);
 }
