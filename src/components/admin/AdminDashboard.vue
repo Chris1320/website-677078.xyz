@@ -71,16 +71,29 @@ function handleNewPost() {
   updateEditUrl(null);
 }
 
-function handleEditPost(post: PostItem) {
+async function handleEditPost(post: PostItem) {
   editingPost.value = post;
   currentTab.value = "editor";
   updateEditUrl(post.id);
+
+  try {
+    const res = await fetch(`/api/admin/posts/${post.id}`);
+    if (res.ok) {
+      const data: any = await res.json();
+      if (data.post && editingPost.value?.id === post.id) {
+        editingPost.value = data.post;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch latest post data", err);
+  }
 }
 
 function handleBackToPosts() {
   currentTab.value = "posts";
   editingPost.value = null;
   updateEditUrl(null);
+  fetchPosts();
 }
 
 function switchTab(tab: Tab) {
@@ -88,6 +101,9 @@ function switchTab(tab: Tab) {
   if (tab !== "editor") {
     editingPost.value = null;
     updateEditUrl(null);
+  }
+  if (tab === "posts") {
+    fetchPosts();
   }
 }
 
@@ -288,7 +304,7 @@ onMounted(async () => {
       @saved="handlePostSaved"
     />
 
-    <MediaLibrary v-show="currentTab === 'media'" />
+    <MediaLibrary v-show="currentTab === 'media'" @posts-updated="fetchPosts" />
 
     <UserSettingsModal
       :show="showUserSettings"

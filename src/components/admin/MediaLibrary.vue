@@ -32,6 +32,10 @@ interface UploadBatchState {
   overallPercent: number;
 }
 
+const emit = defineEmits<{
+  (e: "posts-updated"): void;
+}>();
+
 const mediaList = ref<MediaUsageItem[]>([]);
 const totalMedia = ref(0);
 const orphanCount = ref(0);
@@ -425,6 +429,10 @@ async function confirmRenameAsset() {
     if (inspectingMedia.value?.id === assetToRename.value.id) {
       inspectingMedia.value.filename = data.asset.filename;
       inspectingMedia.value.mime_type = data.asset.mime_type;
+    }
+
+    if (updatedPosts > 0) {
+      emit("posts-updated");
     }
 
     assetToRename.value = null;
