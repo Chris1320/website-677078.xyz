@@ -9,6 +9,10 @@ import { formatDate } from '../lib/utils';
 import { HOMEPAGE_RECENT_POSTS_LIMIT } from '../lib/info';
 
 export const prerender = false;
+Astro.response.headers.set(
+  'Cache-Control',
+  'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400'
+);
 
 let publishedCount = 0;
 let tagsCount = 0;
