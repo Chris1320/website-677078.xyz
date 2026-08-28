@@ -216,101 +216,87 @@
 .markdown-body .obsidian-callout[data-callout="note"],
 .markdown-body .obsidian-callout[data-callout="seealso"],
 .markdown-body .obsidian-callout[data-callout="info"],
-.markdown-body .obsidian-callout[data-callout="todo"] {
-  border-left-color: #0284c7;
-  background: rgba(2, 132, 199, 0.06);
-}
-.markdown-body .obsidian-callout[data-callout="note"] .callout-header,
-.markdown-body .obsidian-callout[data-callout="info"] .callout-header {
-  color: #38bdf8;
-}
-
+.markdown-body .obsidian-callout[data-callout="todo"],
 .markdown-body .obsidian-callout[data-callout="abstract"],
 .markdown-body .obsidian-callout[data-callout="summary"],
 .markdown-body .obsidian-callout[data-callout="tldr"] {
-  border-left-color: #06b6d4;
-  background: rgba(6, 182, 212, 0.06);
+  border-left-color: var(--status-info-border);
+  background: var(--status-info-bg);
 }
+.markdown-body .obsidian-callout[data-callout="note"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="seealso"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="info"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="todo"] .callout-header,
 .markdown-body .obsidian-callout[data-callout="abstract"] .callout-header,
-.markdown-body .obsidian-callout[data-callout="summary"] .callout-header {
-  color: #22d3ee;
+.markdown-body .obsidian-callout[data-callout="summary"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="tldr"] .callout-header {
+  color: var(--status-info-text);
 }
 
 .markdown-body .obsidian-callout[data-callout="tip"],
 .markdown-body .obsidian-callout[data-callout="hint"],
-.markdown-body .obsidian-callout[data-callout="important"] {
-  border-left-color: #10b981;
-  background: rgba(16, 185, 129, 0.06);
-}
-.markdown-body .obsidian-callout[data-callout="tip"] .callout-header,
-.markdown-body .obsidian-callout[data-callout="hint"] .callout-header {
-  color: #34d399;
-}
-
+.markdown-body .obsidian-callout[data-callout="important"],
 .markdown-body .obsidian-callout[data-callout="success"],
 .markdown-body .obsidian-callout[data-callout="check"],
 .markdown-body .obsidian-callout[data-callout="done"] {
-  border-left-color: #22c55e;
-  background: rgba(34, 197, 94, 0.06);
+  border-left-color: var(--status-success-border);
+  background: var(--status-success-bg);
 }
-.markdown-body .obsidian-callout[data-callout="success"] .callout-header {
-  color: #4ade80;
+.markdown-body .obsidian-callout[data-callout="tip"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="hint"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="important"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="success"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="check"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="done"] .callout-header {
+  color: var(--status-success-text);
 }
 
 .markdown-body .obsidian-callout[data-callout="question"],
 .markdown-body .obsidian-callout[data-callout="help"],
-.markdown-body .obsidian-callout[data-callout="faq"] {
-  border-left-color: #eab308;
-  background: rgba(234, 179, 8, 0.06);
-}
-.markdown-body .obsidian-callout[data-callout="question"] .callout-header,
-.markdown-body .obsidian-callout[data-callout="faq"] .callout-header {
-  color: #facc15;
-}
-
+.markdown-body .obsidian-callout[data-callout="faq"],
 .markdown-body .obsidian-callout[data-callout="warning"],
 .markdown-body .obsidian-callout[data-callout="caution"],
 .markdown-body .obsidian-callout[data-callout="attention"] {
-  border-left-color: #f97316;
-  background: rgba(249, 115, 22, 0.06);
+  border-left-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
 }
-.markdown-body .obsidian-callout[data-callout="warning"] .callout-header {
-  color: #fb923c;
+.markdown-body .obsidian-callout[data-callout="question"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="help"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="faq"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="warning"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="caution"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="attention"] .callout-header {
+  color: var(--status-warning-text);
 }
 
 .markdown-body .obsidian-callout[data-callout="failure"],
 .markdown-body .obsidian-callout[data-callout="fail"],
 .markdown-body .obsidian-callout[data-callout="missing"],
 .markdown-body .obsidian-callout[data-callout="danger"],
-.markdown-body .obsidian-callout[data-callout="error"] {
-  border-left-color: #ef4444;
-  background: rgba(239, 68, 68, 0.06);
-}
-.markdown-body .obsidian-callout[data-callout="danger"] .callout-header,
-.markdown-body .obsidian-callout[data-callout="error"] .callout-header {
-  color: #f87171;
-}
-
+.markdown-body .obsidian-callout[data-callout="error"],
 .markdown-body .obsidian-callout[data-callout="bug"] {
-  border-left-color: #ec4899;
-  background: rgba(236, 72, 153, 0.06);
+  border-left-color: var(--status-error-border);
+  background: var(--status-error-bg);
 }
+.markdown-body .obsidian-callout[data-callout="failure"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="fail"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="missing"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="danger"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="error"] .callout-header,
 .markdown-body .obsidian-callout[data-callout="bug"] .callout-header {
-  color: #f472b6;
+  color: var(--status-error-text);
 }
 
-.markdown-body .obsidian-callout[data-callout="example"] {
-  border-left-color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.06);
-}
-.markdown-body .obsidian-callout[data-callout="example"] .callout-header {
-  color: #a78bfa;
-}
-
+.markdown-body .obsidian-callout[data-callout="example"],
 .markdown-body .obsidian-callout[data-callout="quote"],
 .markdown-body .obsidian-callout[data-callout="cite"] {
-  border-left-color: #94a3b8;
-  background: rgba(148, 163, 184, 0.06);
+  border-left-color: var(--status-purple-border);
+  background: var(--status-purple-bg);
+}
+.markdown-body .obsidian-callout[data-callout="example"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="quote"] .callout-header,
+.markdown-body .obsidian-callout[data-callout="cite"] .callout-header {
+  color: var(--status-purple-text);
 }
 
 .markdown-body .callout-header {
