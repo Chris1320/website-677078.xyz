@@ -43,11 +43,13 @@ describe("Markdown Engine", () => {
     expect(html).toContain("<svg");
   });
 
-  it("highlights code blocks with Shiki", async () => {
+  it("highlight code blocks with Shiki", async () => {
     const md = '```typescript\nconst greeting: string = "hello world";\n```';
     const html = await renderMarkdown(md);
     expect(html).toContain("code-block-wrapper");
     expect(html).toContain("greeting");
+    expect(html).toContain("--shiki-dark");
+    expect(html).toContain("--shiki-light");
   });
 
   it("extracts media references accurately for orphan tracking", () => {

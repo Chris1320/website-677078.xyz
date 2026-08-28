@@ -417,12 +417,16 @@ function rehypeShikiHighlight(highlighter: HighlighterCore) {
       try {
         const highlightedHtml = highlighter.codeToHtml(codeText.trimEnd(), {
           lang: resolvedLang,
-          theme: "catppuccin-mocha",
+          themes: {
+            dark: "catppuccin-mocha",
+            light: "catppuccin-latte",
+          },
+          defaultColor: false,
         });
 
         const rawNode = {
           type: "raw" as const,
-          value: `<div class="code-block-wrapper my-4 overflow-hidden border border-emerald-900/60">${highlightedHtml}</div>`,
+          value: `<div class="code-block-wrapper my-4 overflow-hidden border border-(--border-main)">${highlightedHtml}</div>`,
         };
 
         (parent.children as any)[index] = rawNode;

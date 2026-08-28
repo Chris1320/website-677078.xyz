@@ -342,3 +342,18 @@
   line-height: 1.7;
   background: transparent !important;
 }
+
+/* Shiki Dual-Theme Token & Theme Switching */
+html[data-theme="dark"] .shiki,
+html[data-theme="dark"] .shiki span,
+[data-theme="dark"] .shiki,
+[data-theme="dark"] .shiki span {
+  color: var(--shiki-dark) !important;
+}
+
+html[data-theme="light"] .shiki,
+html[data-theme="light"] .shiki span,
+[data-theme="light"] .shiki,
+[data-theme="light"] .shiki span {
+  color: var(--shiki-light) !important;
+}
