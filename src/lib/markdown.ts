@@ -267,7 +267,7 @@ function remarkObsidianLinks() {
 
             newChildren.push({
               type: "html",
-              value: `<a href="${encodeURI(href)}" class="obsidian-wikilink text-emerald-400 underline decoration-emerald-600/50 hover:decoration-emerald-400">${escapeHtml(label)}</a>`,
+              value: `<a href="${encodeURI(href)}" class="obsidian-wikilink">${escapeHtml(label)}</a>`,
             });
           }
 

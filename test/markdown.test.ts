@@ -14,6 +14,14 @@ describe("Markdown Engine", () => {
     expect(html).toContain("this");
     expect(html).toContain('href="/posts/bar"');
     expect(html).toContain("that");
+    expect(html).toContain('class="obsidian-wikilink"');
+  });
+
+  it("renders markdown links correctly", async () => {
+    const md = "Visit [DuckDuckGo](https://duckduckgo.com) for details.";
+    const html = await renderMarkdown(md);
+    expect(html).toContain('href="https://duckduckgo.com"');
+    expect(html).toContain("DuckDuckGo");
   });
 
   it("renders image embeds with /media/ path", async () => {

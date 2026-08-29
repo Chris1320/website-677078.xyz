@@ -339,14 +339,18 @@
   white-space: nowrap;
 }
 
+.markdown-body a:not(.heading-anchor):not(.obsidian-attachment-link),
 .markdown-body .obsidian-wikilink {
   color: var(--accent-green-bright);
   text-decoration: underline;
   text-decoration-color: var(--accent-green-dim);
   text-underline-offset: 3px;
-  transition: text-decoration-color 0.2s;
+  transition:
+    text-decoration-color 0.2s,
+    color 0.2s;
 }
 
+.markdown-body a:not(.heading-anchor):not(.obsidian-attachment-link):hover,
 .markdown-body .obsidian-wikilink:hover {
   text-decoration-color: var(--accent-green-bright);
 }
