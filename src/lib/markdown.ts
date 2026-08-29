@@ -475,32 +475,42 @@ function rehypeShikiHighlight(highlighter: HighlighterCore) {
   };
 }
 
+let processorPromise: Promise<any> | null = null;
+
+async function getProcessor() {
+  if (!processorPromise) {
+    processorPromise = (async () => {
+      const highlighter = await getHighlighterInstance();
+      return unified()
+        .use(remarkParse)
+        .use(remarkGfm)
+        .use(remarkMath)
+        .use(remarkObsidianLinks)
+        .use(remarkObsidianCallouts)
+        .use(remarkRehype, { allowDangerousHtml: true })
+        .use(rehypeKatex)
+        .use(rehypeSlug)
+        .use(rehypeAutolinkHeadings, {
+          behavior: "append",
+          properties: {
+            class:
+              "heading-anchor ml-2 text-emerald-600 hover:text-emerald-400 opacity-60 hover:opacity-100",
+            ariaHidden: "true",
+          },
+        })
+        .use(() => rehypeShikiHighlight(highlighter))
+        .use(rehypeStringify, { allowDangerousHtml: true })
+        .freeze();
+    })();
+  }
+  return processorPromise;
+}
+
 /**
  * Parse Obsidian Markdown content into clean, safe HTML
  */
 export async function renderMarkdown(markdown: string): Promise<string> {
-  const highlighter = await getHighlighterInstance();
-
-  const processor = unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkMath)
-    .use(remarkObsidianLinks)
-    .use(remarkObsidianCallouts)
-    .use(remarkRehype, { allowDangerousHtml: true })
-    .use(rehypeKatex)
-    .use(rehypeSlug)
-    .use(rehypeAutolinkHeadings, {
-      behavior: "append",
-      properties: {
-        class:
-          "heading-anchor ml-2 text-emerald-600 hover:text-emerald-400 opacity-60 hover:opacity-100",
-        ariaHidden: "true",
-      },
-    })
-    .use(() => rehypeShikiHighlight(highlighter))
-    .use(rehypeStringify, { allowDangerousHtml: true });
-
+  const processor = await getProcessor();
   const file = await processor.process(markdown);
   return String(file);
 }

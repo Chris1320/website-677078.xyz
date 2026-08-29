@@ -9,7 +9,7 @@ import {
   pruneOrphanFiles,
   uploadFileWithProgress,
 } from "../../lib/media";
-import { extractMediaReferences } from "../../lib/markdown";
+import { extractMediaReferences, renderMarkdown } from "../../lib/markdown";
 
 const props = defineProps<{
   initialPost?: PostItem | null;
@@ -52,21 +52,22 @@ function fetchPreview() {
   isRenderingPreview.value = true;
   previewTimeout = setTimeout(async () => {
     try {
-      const res = await fetch("/api/admin/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: content.value }),
-      });
-      const data: any = await res.json();
+      if (!content.value.trim()) {
+        previewHtml.value =
+          '<p class="text-[var(--text-muted)]">> Empty document</p>';
+        return;
+      }
+      const html = await renderMarkdown(content.value);
       previewHtml.value =
-        data.html || '<p class="text-[var(--text-muted)]">> Empty document</p>';
-    } catch {
+        html || '<p class="text-[var(--text-muted)]">> Empty document</p>';
+    } catch (err) {
+      console.error("Client preview error:", err);
       previewHtml.value =
         '<p class="text-(--status-error-text)">> Failed to render preview</p>';
     } finally {
       isRenderingPreview.value = false;
     }
-  }, 250);
+  }, 300);
 }
 
 function onSlugInput() {
