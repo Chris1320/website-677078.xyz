@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import AsciiTitle from '../components/AsciiTitle.astro';
+import ContactSection from '../components/ContactSection.astro';
 import { Icon } from 'astro-icon/components';
 import { eq, desc, count, countDistinct, inArray } from 'drizzle-orm';
 import { getDb, posts, tags, post_tags } from '../db';
@@ -268,5 +269,6 @@ try {
         </a>
       </div>
     </section>
+    <ContactSection />
   </div>
 </Layout>
