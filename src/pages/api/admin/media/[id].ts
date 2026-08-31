@@ -9,6 +9,7 @@ import {
 import {
   replaceMediaReferences,
   extractMediaReferences,
+  renderMarkdown,
 } from "../../../../lib/markdown";
 
 export const prerender = false;
@@ -165,10 +166,21 @@ export const PATCH: APIRoute = async (context) => {
         );
 
         if (newContent !== post.content) {
+          let newContentHtml: string | null = null;
+          try {
+            newContentHtml = await renderMarkdown(newContent);
+          } catch (renderErr) {
+            console.error(
+              "Failed to re-render post on media rename:",
+              renderErr,
+            );
+          }
+
           await db
             .update(posts)
             .set({
               content: newContent,
+              content_html: newContentHtml,
               updated_at: new Date(),
             })
             .where(eq(posts.id, post.id));

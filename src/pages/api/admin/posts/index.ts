@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { desc, eq, inArray } from "drizzle-orm";
 import { getDb, posts, tags, post_tags } from "../../../../db";
 import { slugify } from "../../../../lib/utils";
+import { renderMarkdown } from "../../../../lib/markdown";
 import {
   MAX_POST_TITLE_LENGTH,
   MAX_POST_DESCRIPTION_LENGTH,
@@ -87,6 +88,7 @@ export const POST: APIRoute = async (context) => {
       title,
       description = "",
       content,
+      content_html,
       status = "draft",
       tags: rawTags = [],
     } = body || {};
@@ -154,6 +156,18 @@ export const POST: APIRoute = async (context) => {
       slug = `${slug.slice(0, MAX_POST_SLUG_LENGTH - 10)}-${crypto.randomUUID().slice(0, 6)}`;
     }
 
+    let finalContentHtml: string | null = null;
+    if (typeof content_html === "string") {
+      finalContentHtml = content_html;
+    } else if (content) {
+      try {
+        finalContentHtml = await renderMarkdown(content);
+      } catch (renderErr) {
+        console.error("Server markdown render error:", renderErr);
+        finalContentHtml = null;
+      }
+    }
+
     const postId = crypto.randomUUID();
     const now = new Date();
     const isPublished = status === "published";
@@ -169,6 +183,7 @@ export const POST: APIRoute = async (context) => {
       title: title.trim(),
       description: cleanDescription,
       content,
+      content_html: finalContentHtml,
       status: isPublished ? "published" : "draft",
       created_at: now,
       updated_at: now,

@@ -15,6 +15,7 @@ export const posts = sqliteTable(
     title: text("title").notNull(),
     description: text("description"),
     content: text("content").notNull(),
+    content_html: text("content_html"),
     status: text("status", { enum: ["draft", "published"] })
       .notNull()
       .default("draft"),

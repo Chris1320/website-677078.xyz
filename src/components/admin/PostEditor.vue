@@ -324,11 +324,24 @@ async function executeSave(
   errorMessage.value = "";
   successMessage.value = "";
 
+  let renderedHtml = "";
+  if (content.value.trim()) {
+    try {
+      renderedHtml = await renderMarkdown(content.value);
+    } catch (renderErr) {
+      console.warn(
+        "Client markdown pre-render failed, will fall back to server render:",
+        renderErr,
+      );
+    }
+  }
+
   const payload = {
     title: title.value.trim(),
     slug: slug.value.trim() || slugify(title.value),
     description: description.value.trim(),
     content: content.value,
+    content_html: renderedHtml,
     status: publishStatus,
     tags: tags.value,
     updatePublishedDate,

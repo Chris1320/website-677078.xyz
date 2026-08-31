@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { eq, or } from "drizzle-orm";
 import { getDb, posts, tags, post_tags } from "../../../../db";
 import { slugify } from "../../../../lib/utils";
+import { renderMarkdown } from "../../../../lib/markdown";
 import {
   MAX_POST_TITLE_LENGTH,
   MAX_POST_DESCRIPTION_LENGTH,
@@ -98,7 +99,14 @@ export const PUT: APIRoute = async (context) => {
     }
 
     const body = (await context.request.json()) as any;
-    const { title, description, content, status, tags: rawTags } = body || {};
+    const {
+      title,
+      description,
+      content,
+      content_html,
+      status,
+      tags: rawTags,
+    } = body || {};
 
     let updatedTitle = existingPost.title;
     if (typeof title === "string" && title.trim()) {
@@ -131,6 +139,8 @@ export const PUT: APIRoute = async (context) => {
     }
 
     let updatedContent = existingPost.content;
+    let updatedContentHtml = existingPost.content_html;
+
     if (typeof content === "string") {
       if (content.length > MAX_POST_CONTENT_LENGTH) {
         return new Response(
@@ -144,6 +154,18 @@ export const PUT: APIRoute = async (context) => {
         );
       }
       updatedContent = content;
+
+      if (typeof content_html === "string") {
+        updatedContentHtml = content_html;
+      } else {
+        try {
+          updatedContentHtml = await renderMarkdown(content);
+        } catch (renderErr) {
+          console.error("Server markdown render error:", renderErr);
+        }
+      }
+    } else if (typeof content_html === "string") {
+      updatedContentHtml = content_html;
     }
 
     let updatedStatus = existingPost.status;
@@ -180,6 +202,7 @@ export const PUT: APIRoute = async (context) => {
         slug: updatedSlug,
         description: updatedDescription,
         content: updatedContent,
+        content_html: updatedContentHtml,
         status: updatedStatus,
         updated_at: now,
         published_at: publishedAt,
