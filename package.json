@@ -18,17 +18,17 @@
     "seed:admin": "bun scripts/seed-admin.ts"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.2.5",
-    "@astrojs/vue": "^7.0.2",
+    "@astrojs/cloudflare": "^14.3.3",
+    "@astrojs/vue": "^7.0.3",
     "@fontsource/maple-mono": "^5.3.0",
-    "@iconify-json/lucide": "^1.2.127",
-    "@iconify/vue": "^5.0.1",
+    "@iconify-json/lucide": "^1.2.138",
+    "@iconify/vue": "^5.0.3",
     "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.2.9",
+    "astro": "^7.3.5",
     "astro-icon": "^1.2.0",
-    "drizzle-orm": "^0.45.2",
-    "katex": "^0.18.4",
-    "otpauth": "^9.5.1",
+    "drizzle-orm": "^0.45.3",
+    "katex": "^0.18.11",
+    "otpauth": "^9.5.2",
     "qrcode": "^1.5.4",
     "rehype-autolink-headings": "^7.1.0",
     "rehype-katex": "^7.0.1",
@@ -38,20 +38,20 @@
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
-    "shiki": "^4.4.3",
+    "shiki": "^4.5.0",
     "tailwindcss": "^4.3.3",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
-    "vue": "^3.5.42"
+    "vue": "^3.5.43"
   },
   "allowScripts": {
     "esbuild": true
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260829.1",
-    "@types/bun": "^1.4.0",
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "@types/bun": "^1.4.2",
     "@types/qrcode": "^1.5.6",
-    "drizzle-kit": "^0.31.10",
-    "wrangler": "^4.127.1"
+    "drizzle-kit": "^0.31.11",
+    "wrangler": "^4.146.0"
   }
 }
