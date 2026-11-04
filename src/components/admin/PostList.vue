@@ -242,7 +242,6 @@ watch([searchQuery, statusFilter], () => {
               </td>
               <td class="p-3 text-right whitespace-nowrap space-x-2">
                 <a
-                  v-if="post.status === 'published'"
                   :href="`/posts/${post.slug}`"
                   target="_blank"
                   class="px-2 py-1 text-xs border border-(--border-subtle) text-(--text-muted) hover:text-(--text-primary) hover:border-(--border-main) inline-flex items-center gap-1"
