@@ -43,7 +43,7 @@ try {
     // Edge Cache Control for Public Published Post
     Astro.response.headers.set(
       'Cache-Control',
-      'public, max-age=0, s-maxage=86400, stale-while-revalidate=3600'
+      'public, max-age=0, s-maxage=300, stale-while-revalidate=60'
     );
   } else {
     const authUser = await getAuthenticatedUser(Astro.request);
@@ -51,8 +51,7 @@ try {
       Astro.response.status = 404;
       return Astro.rewrite('/404');
     }
-    // return Astro.redirect(`/admin?edit=${foundPost.id}`);
-    Astro.response.headers.set('Cache-Control', 'private, no-store')
+    Astro.response.headers.set('Cache-Control', 'private, no-store');
   }
 
   post = foundPost;
@@ -94,7 +93,7 @@ const readTime = calculateReadingTime(post.content);
           <Icon name="lucide:alert-triangle" class="w-4 h-4 text-amber-400" />
           <span>This post is <b><u>unpublished</u></b> and visible only for admins.</span>
         </span>
-        <a href=`/admin?edit=${post.id}` class="underline hover:text-amber-100 inline-flex items-center gap-1">
+        <a href={`/admin?edit=${post.id}`} class="underline hover:text-amber-100 inline-flex items-center gap-1">
           <span>Open in Editor</span>
           <Icon name="lucide:arrow-right" class="w-3.5 h-3.5" />
         </a>
